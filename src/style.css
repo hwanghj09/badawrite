@@ -254,6 +254,10 @@ textarea:focus { background: var(--sheet); border-color: var(--sea); }
 .text-button:disabled { opacity: .4; }
 
 /* Settings */
+.default-help { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.8; }
+.voice-settings { margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 16px; }
+.voice-settings summary { cursor: pointer; color: var(--sea); font-size: 14px; font-weight: 600; padding: 4px 0; }
+.voice-settings[open] summary { margin-bottom: 16px; }
 .voices { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .voice-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-box); background: var(--sunk); border: 1px solid var(--rule); min-width: 0; }
 .voice-avatar {
@@ -365,11 +369,16 @@ select:disabled { opacity: .5; cursor: not-allowed; }
 .question-button:nth-child(4) { animation-delay: 90ms; } .question-button:nth-child(n+5) { animation-delay: 120ms; }
 .question-button:hover:not(.selected) { border-color: var(--sea); color: var(--sea); background: var(--sea-tint); transform: translateY(-2px); }
 .question-button.selected { background: var(--sea); border-color: var(--sea); color: var(--on-sea); font-weight: 600; }
+.question-button:disabled { opacity: .45; cursor: default; }
 
 .exercise-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--rule); }
 .exercise-heading > div { min-width: 0; }
 .exercise-number { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; color: var(--mark); font-weight: 500; }
 .exercise-heading h3 { font-family: var(--font-display); font-size: 18px; font-weight: 600; line-height: 1.6; margin: 4px 0 16px; }
+.exercise-subquestions { margin: 0 0 16px; font-size: 15px; line-height: 1.7; }
+.exercise-subquestions p { display: flex; align-items: baseline; gap: 12px; margin: 0 0 8px; }
+.exercise-subquestions b { flex-shrink: 0; color: var(--mark); font-weight: 500; }
+.exercise-subquestions span { min-width: 0; overflow-wrap: anywhere; }
 .hide-script { display: flex; align-items: center; gap: 8px; min-height: var(--hit); font-size: 14px; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
 .hide-script input { accent-color: var(--sea); width: 18px; height: 18px; margin: 0; }
 .options { display: grid; gap: 8px; }
