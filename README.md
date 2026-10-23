@@ -6,7 +6,7 @@
 
 ## 실행
 
-Node.js 22.12 이상에서 `npm ci`, `npm run dev`를 실행한 후 `/badawrite/` 주소를 엽니다. `npm test`는 대본 분리·화자 구분·해설 제외·WAV 헤더를 검증하며, `npm run build`는 정적 배포용 `dist/`를 만듭니다.
+Node.js 22.13 이상에서 `npm ci`, `npm run dev`를 실행한 후 `/badawrite/` 주소를 엽니다. `npm test`는 대본 분리·화자 구분·해설 제외·WAV 헤더를 검증하며, `npm run build`는 정적 배포용 `dist/`를 만듭니다.
 
 ## 공개 배포
 
