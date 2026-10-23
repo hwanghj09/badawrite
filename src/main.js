@@ -41,6 +41,8 @@ function lock(value) {
 }
 function invalidateAudio() {
   audio.pause(); audio.removeAttribute('src'); audio.load();
+  $('play').textContent = '▶';
+  $('play').setAttribute('aria-label', '재생');
   if (audioUrl) URL.revokeObjectURL(audioUrl);
   audioUrl = null; markers = [];
   $('play').disabled = true; $('download').disabled = true; $('seek').disabled = true;
