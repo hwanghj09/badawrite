@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseScript, encodeWav, joinAudio, splitSpeech, SAMPLE } from '../src/script.js';
+import { parseScript, encodeWav, joinAudio, splitSpeech } from '../src/script.js';
 
-test('sample has real questions, speakers, choices and answers', () => {
-  const q = parseScript(SAMPLE);
-  assert.equal(q.length, 3); assert.equal(q[0].turns.length, 4);
+test('parses supplied questions, speakers, choices and answers', () => {
+  const q = parseScript('1. 대화를 듣고 답하시오.\nW: Good morning.\nM: Hello.\n① A\n② B\n③ C\n④ D\n⑤ E\n정답: ③');
+  assert.equal(q.length, 1); assert.equal(q[0].turns.length, 2);
   assert.equal(q[0].turns[0].speaker, 'W'); assert.equal(q[0].turns[1].speaker, 'M');
-  assert.equal(q[1].options.length, 5); assert.equal(q[1].answer, 3);
+  assert.equal(q[0].options.length, 5); assert.equal(q[0].answer, 3);
 });
 test('OCR spacing, wrapping, combined question and translation exclusion', () => {
   const q = parseScript('[16~17] 다음을 듣고 답하시오.\nW ： Hello there.\nWelcome to our school.\n[해석]\nW: This must not be spoken.\n18번 다음 대화\nM: Next question.');

@@ -1,10 +1,16 @@
-# BADA Listen
+# badawrite
+
+[웹사이트 바로 열기](https://hwanghj09.github.io/badawrite/) · [배포 상태와 실행](https://github.com/hwanghj09/badawrite/actions/workflows/deploy.yml)
 
 사진·TXT·직접 입력한 영어 대본에서 듣기 연습 음성과 WAV 파일을 만드는 브라우저 앱입니다. API 키나 서버 저장소가 필요하지 않습니다.
 
 ## 실행
 
-Node.js 22.12 이상에서 `npm install`, `npm run dev`를 실행합니다. `npm test`는 대본 분리·화자 구분·해설 제외·WAV 헤더를 검증하며, `npm run build`는 정적 배포용 `dist/`를 만듭니다.
+Node.js 22.12 이상에서 `npm ci`, `npm run dev`를 실행한 후 `/badawrite/` 주소를 엽니다. `npm test`는 대본 분리·화자 구분·해설 제외·WAV 헤더를 검증하며, `npm run build`는 정적 배포용 `dist/`를 만듭니다.
+
+## 공개 배포
+
+`main` 브랜치에 푸시하면 GitHub Actions가 테스트·빌드 후 GitHub Pages에 자동 배포합니다. Actions의 `Deploy badawrite`는 수동 실행도 가능하며, 성공한 실행의 Summary와 `github-pages` 환경에 웹사이트 바로가기 링크가 표시됩니다. 별도 API 키나 GitHub 저장소 시크릿이 필요하지 않습니다. 사이트는 빈 상태로 시작하고 사용자가 올린 대본만 처리합니다.
 
 ## 사용법
 
@@ -19,6 +25,6 @@ Node.js 22.12 이상에서 `npm install`, `npm run dev`를 실행합니다. `npm
 - 처음 OCR·음성 생성을 실행할 때 외부 CDN/Hugging Face에서 모델을 다운로드합니다. 사진·대본은 서버로 전송하지 않습니다. 음성 모델 준비에는 수 분과 상당한 메모리가 필요할 수 있습니다. 최신 데스크톱 Chrome/Edge를 권장합니다. 폰에서는 느리거나 메모리 부족으로 실패할 수 있습니다.
 - 복잡한 다단 편집·흐린 사진의 OCR, 문항 구조·화자 인식은 틀릴 수 있습니다. 영어 대본만 잘라 올린 뒤 반드시 결과를 확인하세요. 한 번의 음성 생성은 영어 25,000자로 제한합니다.
 - 사진, 대본, 답안, 생성 음성은 현재 탭 메모리에만 있습니다. 새로고침·탭 종료 전에 대본을 별도 보관하고 WAV를 저장하세요. 대본 또는 생성 설정 변경 시 기존 음성은 무효화됩니다.
-- 예시는 직접 작성한 학습용 문항입니다. 실제 기출문제가 아닙니다. 공유 지문은 하나로 재생되며 두 번 듣기를 켜면 모든 지문이 두 번 재생됩니다.
+- 공유 지문은 하나로 재생되며 두 번 듣기를 켜면 모든 지문이 두 번 재생됩니다.
 
 Kokoro와 Tesseract.js 및 그 모델의 각 라이선스가 적용됩니다. 모델·런타임 제공처에 연결할 수 없는 환경에서는 OCR/생성이 실패할 수 있습니다.

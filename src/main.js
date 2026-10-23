@@ -1,5 +1,5 @@
 import './style.css';
-import { parseScript, SAMPLE, encodeWav } from './script.js';
+import { parseScript, encodeWav } from './script.js';
 
 const $ = id => document.getElementById(id);
 const audio = $('audio');
@@ -36,7 +36,7 @@ for (const name of ['image', 'text']) $(`${name}-tab`).onkeydown = event => {
 };
 function lock(value) {
   busy = value;
-  for (const id of ['script', 'file-input', 'sample', 'clear', 'turn-gap', 'question-gap', 'repeat']) $(id).disabled = value;
+  for (const id of ['script', 'file-input', 'clear', 'turn-gap', 'question-gap', 'repeat']) $(id).disabled = value;
   $('generate').disabled = value || !questions.length;
 }
 function invalidateAudio() {
@@ -47,6 +47,8 @@ function invalidateAudio() {
   $('seek').value = 0; $('time').textContent = '00:00 / 00:00';
   $('player-caption').textContent = '설정한 대본으로 음성을 만들면 재생할 수 있어요';
   $('track-title').textContent = '나만의 듣기 파일';
+  document.querySelectorAll('.step')[2].classList.remove('current');
+  $('generate').innerHTML = '<span>✦</span> 듣기 파일 만들기 <span>→</span>';
 }
 function updateScript() {
   invalidateAudio();
@@ -106,12 +108,11 @@ function renderExercise() {
 }
 $('show-script').onchange = renderExercise;
 $('script').oninput = updateScript;
-$('clear').onclick = () => { $('script').value = ''; updateScript(); $('status').hidden = true; };
-$('sample').onclick = () => {
-  if (busy) return;
-  if ($('script').value.trim() && !window.confirm('현재 대본을 예시 대본으로 바꿀까요?')) return;
-  $('script').value = SAMPLE; tab('text'); updateScript();
-  showStatus('직접 만든 연습용 예시 3문항이에요. 실제 기출문제가 아닙니다. ‘듣기 파일 만들기’를 눌러 시작해 보세요.');
+$('clear').onclick = () => {
+  $('script').value = ''; $('show-script').checked = false;
+  previewUrls.splice(0).forEach(url => URL.revokeObjectURL(url));
+  $('file-previews').replaceChildren();
+  updateScript(); $('status').hidden = true;
 };
 for (const id of ['turn-gap', 'question-gap', 'repeat']) $(id).onchange = invalidateAudio;
 
@@ -147,7 +148,9 @@ async function importFiles(files) {
       const name = document.createElement('span'); name.textContent = file.name; preview.append(name); $('file-previews').append(preview);
     }
     tab('text'); updateScript();
-    showStatus('대본을 가져왔어요. 문항 번호, M: / W: 화자와 영어 대사를 확인하고 수정해 주세요. 해석·해설은 음성에 포함되지 않아요.');
+    showStatus(questions.length
+      ? '대본을 가져왔어요. 문항 번호, M: / W: 화자와 영어 대사를 확인하고 수정해 주세요. 해석·해설은 음성에 포함되지 않아요.'
+      : '영어 대사를 찾지 못했어요. 영어 대본 부분을 다시 올리거나 텍스트를 직접 입력해 주세요.', !questions.length);
   } catch (error) {
     tab('text'); updateScript();
     showStatus(`${error.message} 이미 읽은 대본은 입력창에 남겨두었어요.`, true);

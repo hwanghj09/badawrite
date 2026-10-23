@@ -1,36 +1,3 @@
-export const SAMPLE = `1. 다음 대화를 듣고, 두 사람이 만날 장소를 고르시오.
-W: Hey, Daniel. Are we still meeting at the library this afternoon?
-M: Actually, the library is closed today. How about the cafe across from the park?
-W: That sounds good. Shall we meet there at three?
-M: Perfect. I'll bring my notes for our science project.
-① 도서관
-② 공원 건너편 카페
-③ 과학실
-④ 학교 정문
-⑤ 서점
-정답: ②
-
-2. 다음 대화를 듣고, 여자가 지불할 금액을 고르시오.
-M: Welcome to Green Garden. How can I help you?
-W: I'd like two tickets for the workshop. How much are they?
-M: They're twenty dollars each. Students get a five-dollar discount on each ticket.
-W: Great. We're both students. Here are our student cards.
-① 20달러
-② 25달러
-③ 30달러
-④ 35달러
-⑤ 40달러
-정답: ③
-
-3. 다음을 듣고, 남자가 하는 말의 목적으로 가장 적절한 것을 고르시오.
-M: Hello, everyone. This is a reminder about our school book fair. It will take place in the gym this Friday, from ten in the morning until four in the afternoon. You can bring books you no longer need and exchange them with other students. Please write your name inside each book. We hope to see you there!
-① 체육관 이용 수칙을 설명하려고
-② 도서관 신간을 소개하려고
-③ 도서 교환 행사를 안내하려고
-④ 독후감 제출을 독려하려고
-⑤ 체육대회 일정을 변경하려고
-정답: ③`;
-
 const heading = /^(?:\[\s*)?(\d{1,2})(?:\s*[-~–∼]\s*(\d{1,2}))?\s*(?:번\s*[.．:：\])]?|[.．)\]:：])\s*(.*)$/;
 const speaker = /^(M|W|F|Man|Woman|Male|Female|Boy|Girl|남|여|남자|여자)\s*[:：]\s*(.*)$/i;
 const circled = '①②③④⑤';
