@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import { parseScript } from '../src/script.js';
 import { synthesize } from '../src/audio.js';
 
-test('first question is available while inference for the second is still pending', async () => {
+test('question 1 is available while questions 2 through 12 are still pending', async () => {
   let finishSecond;
   const second = new Promise(resolve => { finishSecond = resolve; });
   let firstReady;
   const ready = new Promise(resolve => { firstReady = resolve; });
   let finished = false;
   const previews = [];
-  const run = synthesize(parseScript('1번\nW: First.\n2번\nM: Second.'),
+  const script = Array.from({ length: 12 }, (_, i) => `${i + 1}번\nW: ${i === 0 ? 'First.' : `Message ${i + 1}.`}`).join('\n');
+  const run = synthesize(parseScript(script),
     { turnGap: 0, questionGap: 0 },
     async text => text === 'First.' ? new Float32Array([0.25, 0.5]) : second,
     undefined,
@@ -25,8 +26,8 @@ test('first question is available while inference for the second is still pendin
   assert.deepEqual(previews[0].samples, new Float32Array([0.25, 0.5]));
   finishSecond(new Float32Array([-0.25]));
   const result = await run;
-  assert.equal(previews.length, 2);
-  assert.deepEqual(result.samples, new Float32Array([0.25, 0.5, -0.25]));
+  assert.equal(previews.length, 12);
+  assert.deepEqual(result.samples, new Float32Array([0.25, 0.5, ...Array(11).fill(-0.25)]));
 });
 
 test('question previews concatenate to the complete track with repeat, pauses and inter-question gaps', async () => {

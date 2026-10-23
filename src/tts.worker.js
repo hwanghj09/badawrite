@@ -28,10 +28,13 @@ self.onmessage = async ({ data }) => {
     }
     const { samples, markers } = await synthesize(data.questions, data, speak,
       message => self.postMessage({ type: 'status', message }),
-      ({ index, marker, samples }) => {
+      async ({ index, marker, samples }) => {
         if (data.skipPreviews?.includes(index)) return;
         const wav = encodeWav(samples);
         self.postMessage({ type: 'question', index, marker, wav }, [wav]);
+        // Give the browser a task boundary to expose this question before the
+        // next inference begins, even when speech is already in the cache.
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
     const wav = encodeWav(samples);
     self.postMessage({ type: 'done', wav, markers }, [wav]);

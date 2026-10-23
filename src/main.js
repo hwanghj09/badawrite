@@ -6,7 +6,7 @@ import { outputNames } from './batch.js';
 const $ = id => document.getElementById(id);
 const audio = $('audio');
 let sequence = 0;
-const newDocument = name => ({ key: ++sequence, name: name || `직접입력 ${sequence}`, text: '', questions: [], answers: new Map(), state: '대본 입력 대기', output: null, previews: [] });
+const newDocument = name => ({ key: ++sequence, name: name || `직접입력 ${sequence}`, text: '', questions: [], answers: new Map(), state: '대본 입력 대기', started: false, output: null, previews: [] });
 let documents = [newDocument()];
 let active = documents[0];
 let selected = 0;
@@ -49,13 +49,14 @@ function refreshControls() {
   }
   $('cancel').hidden = !busy;
   $('download-all').disabled = busy || !documents.some(d => d.output);
-  renderDocuments();
+  renderDocuments(); renderQuestions();
 }
 function discardOutput(doc) {
   if (doc.output) URL.revokeObjectURL(doc.output.url);
   for (const preview of doc.previews) if (preview) URL.revokeObjectURL(preview.url);
   doc.output = null;
   doc.previews = [];
+  doc.started = false;
 }
 function renderDocuments() {
   $('batch-count').textContent = `${documents.length}개 파일 · ${documents.filter(d => d.output).length}개 완료`;
@@ -112,12 +113,14 @@ function receiveQuestion(doc, data) {
   const blob = new Blob([data.wav], { type: 'audio/wav' });
   doc.previews[data.index] = { url: URL.createObjectURL(blob) };
   doc.state = `${doc.previews.filter(Boolean).length}/${doc.questions.length}개 문항 듣기 가능`;
+  const firstReady = data.index === 0 && listening && waiting?.doc === doc && waiting.index === 0;
   if (listening && waiting?.doc === doc && waiting.index === data.index) listenAt(doc, data.index);
   if (active === doc) {
     if (!playback) { selected = data.index; loadAudio(); }
     updatePlayerCaption(); renderQuestions();
   }
   renderDocuments();
+  if (firstReady) $('question-progress').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 function selectDocument(doc, index = 0) {
   active = doc; selected = index; $('script').value = doc.text; $('show-script').checked = false;
@@ -136,6 +139,9 @@ function renderEditor() {
   renderQuestions(); if (questions.length) renderExercise();
 }
 function renderQuestions() {
+  const readyCount = active.output ? active.questions.length : active.previews.filter(Boolean).length;
+  $('question-progress').hidden = !active.questions.length || !(active.started || readyCount);
+  $('ready-count').textContent = `${readyCount}/${active.questions.length}개 준비됨`;
   $('question-list').replaceChildren(...active.questions.map((q, i) => {
     const button = document.createElement('button'); button.className = `question-button${i === selected ? ' selected' : ''}`;
     const ready = Boolean(active.output || active.previews[i]);
@@ -143,6 +149,7 @@ function renderQuestions() {
     button.disabled = !ready; button.setAttribute('aria-pressed', String(i === selected));
     button.onclick = () => {
       listenAt(active, i);
+      $('practice').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }; return button;
   }));
 }
@@ -261,6 +268,8 @@ function generate(doc, settings, progress) {
 $('generate').onclick = async () => {
   if (operation) return;
   const targets = documents.filter(d => d.questions.length && !d.output); if (!targets.length) return;
+  for (const doc of targets) doc.started = true;
+  renderQuestions();
   listening = true; waiting = { doc: targets[0], index: 0 };
   operation = new AbortController(); const signal = operation.signal; refreshControls();
   const settings = { turnGap: Number($('turn-gap').value), questionGap: Number($('question-gap').value), repeat: $('repeat').checked };
