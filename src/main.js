@@ -150,7 +150,7 @@ function renderQuestions() {
 function renderExercise() {
   const q = active.questions[selected]; if (!q) return;
   $('exercise-number').textContent = `QUESTION ${q.id.padStart(2, '0')}${q.repeat === 2 ? ' · 2회 지문' : ''}`;
-  $('exercise-prompt').textContent = q.prompt || '대본을 듣고 가지고 있는 문제를 풀어보세요.';
+  $('exercise-prompt').textContent = q.prompt || '영어 지문을 들어보세요.';
   const subquestions = q.subquestions || [];
   $('exercise-subquestions').hidden = !subquestions.length;
   $('exercise-subquestions').replaceChildren(...subquestions.map(question => {
@@ -161,7 +161,7 @@ function renderExercise() {
   }));
   $('transcript').hidden = !$('show-script').checked;
   $('transcript').replaceChildren(...q.turns.map(turn => {
-    const line = document.createElement('p'); const label = document.createElement('b'); label.textContent = turn.speaker || '♪';
+    const line = document.createElement('p'); const label = document.createElement('b'); label.textContent = turn.label || turn.speaker || '♪';
     const text = document.createElement('span'); text.textContent = turn.text; line.append(label, text); return line;
   }));
   const answer = active.answers.get(selected);
@@ -174,7 +174,7 @@ function renderExercise() {
   $('answer-feedback').textContent = answer
     ? q.answer ? answer === q.answer ? '정답이에요. 잘 들었어요!' : `정답은 ${'①②③④⑤'[q.answer - 1]}번이에요. 다시 들어보세요.`
       : '답을 기록했어요. 대본에 정답이 없어 자동 채점하지 않았어요.'
-    : q.options.length ? '음성을 듣고 답을 골라보세요.' : '선택지가 없는 대본이에요. 가지고 있는 문제지에서 풀어보세요.';
+    : q.options.length ? '음성을 듣고 답을 골라보세요.' : q.prompt || subquestions.length ? '가지고 있는 문제지에서 풀어보세요.' : '대본 보기를 켜면 영어 원문을 함께 확인할 수 있어요.';
 }
 $('show-script').onchange = renderExercise;
 $('script').oninput = () => {

@@ -1,5 +1,7 @@
 const heading = /^(?:\[\s*)?(\d{1,2})(?:\s*번?\s*(?:[-~–∼]|과|및|&)\s*(\d{1,2}))?\s*(?:번(?!부터|까지)\s*[.．:：\])]?|[.．)\]:：])\s*(.*)$/;
 const speaker = /^(M|W|F|Man|Woman|Male|Female|Boy|Girl|남|여|남자|여자)\s*[:：]\s*(.*)$/i;
+const namedSpeaker = /^(Speaker\s*\d+|ANN|[A-Z]|(?:[A-Z][a-z]+(?:['’-][A-Z]?[a-z]+)?)(?:\s+[A-Z][a-z]+){0,2})\s*[:：]\s*(.*)$/;
+const proseLabels = /^(?:Note|Tip|Example|Title|Date|Source|Url|URL|Email|Warning|Important|Summary|Subject|Chapter|Unit|Lesson|Answer)$/i;
 const circled = '①②③④⑤';
 
 export function parseScript(text) {
@@ -7,17 +9,29 @@ export function parseScript(text) {
   let current;
   let translation = false;
   let role = 'W';
-  const answerSheet = /정\s*답\s*및\s*해\s*설|듣\s*기\s*대\s*본/.test(text);
+  const answerSheet = /정\s*답\s*및\s*해\s*설/.test(text);
   const lines = text.replace(/\r/g, '').replace(/([.!?\]])(?=(?:M|W)\s*[:：])/g, '$1\n').replace(/\s+(?=(?:M|W)\s*[:：])/g, '\n').split('\n');
+  const names = new Map();
+  const matchSpeaker = line => {
+    const known = line.match(speaker);
+    if (known || answerSheet) return known;
+    const named = line.match(namedSpeaker);
+    return named && !proseLabels.test(named[1]) ? named : null;
+  };
+  // Unnumbered prose can play paragraph by paragraph; dialogue stays together.
+  const paragraphs = !answerSheet && !lines.some(line => matchSpeaker(line.trim()) || heading.test(line.trim()) || /^[①②③④⑤]/.test(line.trim()));
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const original = lines[lineIndex];
     let line = original.replace(/\s+/g, ' ').trim();
     // Closing exam announcements can share a PDF line with the last question.
     line = line.split(/(?:이제\s*듣기\s*문제가?\s*끝났|\d{1,2}\s*번부터는\s*문제지의?\s*지시에)/)[0].trim();
-    if (!line) continue;
+    if (!line) {
+      if (paragraphs && !original.trim() && !translation && current?.turns.some(t => t.speaker)) current = undefined;
+      continue;
+    }
     if (/^\d{1,2}$/.test(line) && Number(line) >= 1 && Number(line) <= 45) {
       const next = lines.slice(lineIndex + 1, lineIndex + 16).map(l => l.trim()).filter(Boolean).slice(0, 5);
-      const roleIndex = next.findIndex(l => speaker.test(l));
+      const roleIndex = next.findIndex(l => matchSpeaker(l));
       const numberIndex = next.findIndex(l => /^\d{1,2}$/.test(l));
       const previousNumber = Number(current?.id.split('–').at(-1) || 0);
       // Skip answer icons between the number and dialogue, but not page footers
@@ -26,7 +40,8 @@ export function parseScript(text) {
     }
     if (/^(?:\d{1,2}\s*[①②③④⑤]\s*)+$/.test(line)) continue;
     if (!speaker.test(line) && /^[A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*\s*[:：]$/.test(line)) continue;
-    if (/^\d+(?:\s+\d+)?$/.test(line) || /^(?:ANN\s*[:：]|Signal\b|\d+번부터)/i.test(line)) continue;
+    if (/^\d+(?:\s+\d+)?$/.test(line) || /^(?:Signal\s+[MW]\s+(?:Up|Down)\b|\d+번부터)/i.test(line)) continue;
+    if (/^ANN\s*[:：]/i.test(line) && (answerSheet || /[가-힣]/.test(line))) continue;
     const title = line.match(heading) || line.match(/^(\d{1,2})\s*[-~–∼]\s*(\d{1,2})\s+(.+)$/);
     if (title && answerSheet && (Number(title[1]) < 1 || Number(title[1]) > 45)) continue;
     if (title) {
@@ -39,9 +54,9 @@ export function parseScript(text) {
       if (!line) continue;
     }
     if (!current) {
-      if (answerSheet && !speaker.test(line)) continue;
-      if (!speaker.test(line) && /[가-힣]/.test(line)) continue;
-      current = { id: '1', prompt: '', turns: [], options: [], answer: null, endPause: 0, repeat: 1, warnings: [] };
+      if (answerSheet && !matchSpeaker(line)) continue;
+      if (!matchSpeaker(line) && /[가-힣]/.test(line)) continue;
+      current = { id: String(questions.length + 1), prompt: '', turns: [], options: [], answer: null, endPause: 0, repeat: 1, warnings: [] };
       questions.push(current);
     }
     const answer = line.match(/^(?:\[?정답\]?|Answer)\s*[:：]?\s*([①②③④⑤1-5])/i);
@@ -51,7 +66,7 @@ export function parseScript(text) {
     if (translation) continue;
     if (/다시\s*한\s*번\s*듣겠/.test(line)) { current.repeatAt = current.turns.length; continue; }
     if (/^[①②③④⑤]/.test(line)) { current.options.push(line); continue; }
-    const turn = line.match(speaker);
+    const turn = matchSpeaker(line);
     if (answerSheet && current.turns.some(t => t.speaker)) {
       const content = turn ? turn[2] : line;
       const korean = (content.match(/[가-힣]/g) || []).length;
@@ -60,7 +75,12 @@ export function parseScript(text) {
     }
     if (answerSheet && !turn && /^[A-Z0-9()|®© _-]{1,12}$/.test(line)) continue;
     if (turn) {
-      role = /^(W|F|Woman|Female|Girl|여|여자)$/i.test(turn[1]) ? 'W' : 'M';
+      if (speaker.test(line)) role = /^(W|F|Woman|Female|Girl|여|여자)$/i.test(turn[1]) ? 'W' : 'M';
+      else {
+        const name = turn[1].toLowerCase().replace(/\s+/g, ' ');
+        if (!names.has(name)) names.set(name, names.size % 2 ? 'M' : 'W');
+        role = names.get(name);
+      }
       line = turn[2].trim();
     } else if (/[가-힣]/.test(line)) {
       if (current.turns.length) continue;
@@ -77,7 +97,7 @@ export function parseScript(text) {
       } else if (/[a-zA-Z0-9]/.test(part)) {
         const previous = current.turns.at(-1);
         if (!turn && previous?.speaker === role) previous.text += ` ${part.trim()}`;
-        else current.turns.push({ speaker: role, text: part.trim() });
+        else current.turns.push({ speaker: role, text: part.trim(), ...(turn && !speaker.test(`${turn[1]}:`) ? { label: turn[1] } : {}) });
       }
     }
   }
