@@ -12,6 +12,8 @@ export function parseScript(text) {
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const original = lines[lineIndex];
     let line = original.replace(/\s+/g, ' ').trim();
+    // Closing exam announcements can share a PDF line with the last question.
+    line = line.split(/(?:이제\s*듣기\s*문제가?\s*끝났|\d{1,2}\s*번부터는\s*문제지의?\s*지시에)/)[0].trim();
     if (!line) continue;
     if (/^\d{1,2}$/.test(line) && Number(line) >= 1 && Number(line) <= 45) {
       const next = lines.slice(lineIndex + 1, lineIndex + 16).map(l => l.trim()).filter(Boolean).slice(0, 5);
@@ -85,7 +87,7 @@ export function parseScript(text) {
       const previous = result.at(-1);
       if (previous?.id.split('–').includes(q.id)) {
         previous.endPause += q.endPause;
-        previous.prompt += ` ${q.id}번 ${q.prompt}`;
+        if (q.prompt) (previous.subquestions ||= []).push({ id: q.id, prompt: q.prompt });
       }
       continue;
     }

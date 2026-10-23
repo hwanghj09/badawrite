@@ -151,6 +151,14 @@ function renderExercise() {
   const q = active.questions[selected]; if (!q) return;
   $('exercise-number').textContent = `QUESTION ${q.id.padStart(2, '0')}${q.repeat === 2 ? ' · 2회 지문' : ''}`;
   $('exercise-prompt').textContent = q.prompt || '대본을 듣고 가지고 있는 문제를 풀어보세요.';
+  const subquestions = q.subquestions || [];
+  $('exercise-subquestions').hidden = !subquestions.length;
+  $('exercise-subquestions').replaceChildren(...subquestions.map(question => {
+    const line = document.createElement('p');
+    const number = document.createElement('b'); number.textContent = `${question.id}번`;
+    const prompt = document.createElement('span'); prompt.textContent = question.prompt;
+    line.append(number, prompt); return line;
+  }));
   $('transcript').hidden = !$('show-script').checked;
   $('transcript').replaceChildren(...q.turns.map(turn => {
     const line = document.createElement('p'); const label = document.createElement('b'); label.textContent = turn.speaker || '♪';
