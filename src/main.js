@@ -77,6 +77,7 @@ function loadAudio() {
   audio.pause(); audio.removeAttribute('src'); audio.load();
   $('play').textContent = '▶'; $('play').setAttribute('aria-label', '재생');
   const output = active.output;
+  $('practice').hidden = !output;
   if (output) { audio.src = output.url; audio.playbackRate = Number($('speed').value); }
   for (const id of ['play', 'download', 'seek']) $(id).disabled = !output;
   $('seek').value = 0; $('time').textContent = '00:00 / 00:00';
