@@ -1,4 +1,4 @@
-const heading = /^(?:\[\s*)?(\d{1,2})(?:\s*[-~–∼]\s*(\d{1,2}))?\s*(?:번\s*[.．:：\])]?|[.．)\]:：])\s*(.*)$/;
+const heading = /^(?:\[\s*)?(\d{1,2})(?:\s*번?\s*(?:[-~–∼]|과|및|&)\s*(\d{1,2}))?\s*(?:번(?!부터|까지)\s*[.．:：\])]?|[.．)\]:：])\s*(.*)$/;
 const speaker = /^(M|W|F|Man|Woman|Male|Female|Boy|Girl|남|여|남자|여자)\s*[:：]\s*(.*)$/i;
 const circled = '①②③④⑤';
 
@@ -6,37 +6,75 @@ export function parseScript(text) {
   const questions = [];
   let current;
   let translation = false;
-  for (const original of text.replace(/\r/g, '').split('\n')) {
-    const line = original.trim();
+  let role = 'W';
+  for (const original of text.replace(/\r/g, '').replace(/([.!?\]])(?=(?:M|W)\s*[:：])/g, '$1\n').replace(/\s+(?=(?:M|W)\s*[:：])/g, '\n').split('\n')) {
+    let line = original.replace(/\s+/g, ' ').trim();
     if (!line) continue;
+    if (/^\d+(?:\s+\d+)?$/.test(line) || /^(?:ANN\s*[:：]|Signal\b|\d+번부터)/i.test(line)) continue;
     const title = line.match(heading);
     if (title) {
       const id = title[2] ? `${title[1]}–${title[2]}` : title[1];
-      current = { id, prompt: title[3].trim(), turns: [], options: [], answer: null };
+      current = { id, prompt: '', turns: [], options: [], answer: null, endPause: 0, repeat: id.includes('–') ? 2 : 1, warnings: [] };
       questions.push(current);
       translation = false;
-      continue;
+      role = 'W';
+      line = title[3].trim();
+      if (!line) continue;
     }
     if (!current) {
-      current = { id: '1', prompt: '', turns: [], options: [], answer: null };
+      if (!speaker.test(line) && /[가-힣]/.test(line)) continue;
+      current = { id: '1', prompt: '', turns: [], options: [], answer: null, endPause: 0, repeat: 1, warnings: [] };
       questions.push(current);
     }
     const answer = line.match(/^(?:\[?정답\]?|Answer)\s*[:：]?\s*([①②③④⑤1-5])/i);
     if (answer) { current.answer = circled.includes(answer[1]) ? circled.indexOf(answer[1]) + 1 : Number(answer[1]); continue; }
     if (/^(?:\[?(?:해석|해설|어휘|우리말|번역)\]?)/.test(line)) { translation = true; continue; }
     if (translation) continue;
+    if (/다시\s*한\s*번\s*듣겠/.test(line)) { current.repeatAt = current.turns.length; continue; }
     if (/^[①②③④⑤]/.test(line)) { current.options.push(line); continue; }
     const turn = line.match(speaker);
     if (turn) {
-      current.turns.push({ speaker: /^(W|F|Woman|Female|Girl|여|여자)$/i.test(turn[1]) ? 'W' : 'M', text: turn[2].trim() });
-    } else if (/[a-zA-Z]{2}/.test(line) && !/[가-힣]/.test(line)) {
-      if (current.turns.length) current.turns.at(-1).text += ` ${line}`;
-      else current.turns.push({ speaker: 'W', text: line });
-    } else if (!current.turns.length && /[가-힣]/.test(line)) {
+      role = /^(W|F|Woman|Female|Girl|여|여자)$/i.test(turn[1]) ? 'W' : 'M';
+      line = turn[2].trim();
+    } else if (/[가-힣]/.test(line)) {
+      if (current.turns.length) continue;
       current.prompt += `${current.prompt ? ' ' : ''}${line}`;
+      continue;
+    }
+    const trailingWait = line.match(/^\(?\[?\s*(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|초)\s*[)\]]?$/i);
+    if (trailingWait) { current.endPause += Math.min(60, Number(trailingWait[1])); continue; }
+    for (const part of line.split(/(\[[^\]\n]{1,160}\]|\(\s*\d+(?:\.\d+)?\s*(?:seconds?|secs?|초)\s*\))/i)) {
+      if (/^[[(]/.test(part)) {
+        if (/chime|bell|차임|종소리/i.test(part)) current.turns.push({ type: 'chime', text: part, duration: 1.5 });
+        else if (/pause|seconds?|secs?|초|잠시/i.test(part)) current.turns.push({ type: 'pause', text: part, duration: Math.min(60, Number(part.match(/\d+(?:\.\d+)?/)?.[0] || 0.8)) });
+        else if (part.trim()) current.warnings.push(`${part} 효과음은 지원하지 않아 제외됩니다.`);
+      } else if (/[a-zA-Z0-9]/.test(part)) {
+        const previous = current.turns.at(-1);
+        if (!turn && previous?.speaker === role) previous.text += ` ${part.trim()}`;
+        else current.turns.push({ speaker: role, text: part.trim() });
+      }
     }
   }
-  return questions.filter(q => q.turns.some(t => /[a-zA-Z]/.test(t.text)));
+  const result = [];
+  for (const q of questions) {
+    if (!q.turns.some(t => t.speaker && /[a-zA-Z0-9]/.test(t.text))) {
+      const previous = result.at(-1);
+      if (previous?.id.split('–').includes(q.id)) {
+        previous.endPause += q.endPause;
+        previous.prompt += ` ${q.id}번 ${q.prompt}`;
+      }
+      continue;
+    }
+    if (q.repeatAt) {
+      const signature = turns => turns.filter(t => t.speaker).map(t => `${t.speaker}:${t.text}`).join(' ').replace(/\s+/g, ' ');
+      if (signature(q.turns.slice(0, q.repeatAt)) === signature(q.turns.slice(q.repeatAt))) {
+        q.turns = q.turns.slice(0, q.repeatAt); q.repeat = 2;
+      }
+    }
+    delete q.repeatAt;
+    result.push(q);
+  }
+  return result;
 }
 
 export function encodeWav(samples, sampleRate = 24000) {
