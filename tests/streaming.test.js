@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseScript } from '../src/script.js';
+import { parseScript, encodeWav, joinWav } from '../src/script.js';
 import { synthesize } from '../src/audio.js';
 
 test('question 1 is available while questions 2 through 12 are still pending', async () => {
@@ -54,4 +54,17 @@ test('completed question remains usable when a later question fails', async () =
     }, undefined, part => previews.push(part)), /Model failed/);
   assert.equal(previews.length, 1);
   assert.deepEqual(previews[0].samples, new Float32Array([0.5]));
+});
+
+test('streaming releases PCM between questions and joins WAV blobs without changing audio or markers', async () => {
+  const questions = parseScript('1번\n[Chime bell rings.]\nW: Hello.\n(2 seconds)\n2번\nM: Goodbye.');
+  const settings = { turnGap: 0.5, questionGap: 3, repeat: true };
+  const speak = async () => new Float32Array([0.25, -0.5]);
+  const full = await synthesize(questions, settings, speak);
+  const parts = [];
+  const streamed = await synthesize(questions, { ...settings, streamOnly: true }, speak, undefined,
+    ({ samples }) => parts.push(new Blob([encodeWav(samples)])));
+  assert.equal(streamed.samples, undefined);
+  assert.deepEqual(streamed.markers, full.markers);
+  assert.deepEqual(await joinWav(parts).arrayBuffer(), encodeWav(full.samples));
 });

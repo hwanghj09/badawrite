@@ -46,6 +46,16 @@
       </div>
       <p id="parse-notice" class="notice" role="note" hidden></p>
 
+      <details class="question-paper">
+        <summary>문제지 연결 · 한국어 질문도 읽기</summary>
+        <p class="hint">현재 대본과 번호가 같은 질문을 영어 대화 앞에 읽고 WAV·ZIP에도 넣어요. 문제지는 대본별로 연결해 주세요.</p>
+        <label class="text-button paper-upload" for="paper-input">문제지 파일 선택 (PDF·사진·TXT)</label>
+        <input id="paper-input" class="visually-hidden" type="file" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp,text/plain,.txt" />
+        <label for="question-paper">한국어 문제 문구 · 추출 결과를 확인하고 고칠 수 있어요</label>
+        <textarea id="question-paper" maxlength="50000" spellcheck="false" placeholder="1. 다음을 듣고, 남자가 하는 말의 목적으로 가장 적절한 것을 고르시오.&#10;2. 다음 중 적절하지 않은 것을 고르시오."></textarea>
+        <div class="editor-bottom"><span id="paper-summary" role="status">연결된 문제지 없음</span><button id="remove-paper" class="text-button" disabled>연결 해제</button></div>
+      </details>
+
       <section id="batch-panel" class="batch" aria-label="대본 목록" hidden>
         <div class="batch-heading"><strong id="batch-count"></strong><button id="download-all" class="text-button" disabled>전체 ZIP 저장</button></div>
         <div id="document-list" class="document-list"></div>
@@ -58,7 +68,11 @@
       <button id="cancel" class="text-button cancel" hidden>만들기 취소</button>
       <p class="hint">남녀 목소리는 자동으로 나눠요. 처음 한 번은 음성 모델을 받느라 몇 분 걸려요.</p>
       <details id="voice-settings" class="settings">
-        <summary>간격 설정</summary>
+        <summary>간격·안내방송 설정</summary>
+        <label class="setting-line" for="exam-audio">수능 원본 안내방송·차임벨
+          <input id="exam-audio" class="switch" type="checkbox" role="switch" checked />
+        </label>
+        <p class="hint">시작 안내방송을 붙이고, 대본의 차임벨 표시에 원본 소리를 넣어요. <a href="https://www.suneung.re.kr/boardCnts/list.do?boardID=1500234&amp;m=0403&amp;s=suneung" target="_blank" rel="noopener noreferrer">출처: 평가원 2026학년도 수능</a></p>
         <label class="setting-line" for="turn-gap">화자 사이
           <select id="turn-gap"><option value="0.25">0.25초</option><option value="0.5" selected>0.5초</option><option value="1">1초</option></select>
         </label>
@@ -71,7 +85,11 @@
       </details>
     </section>
 
-    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+    <div id="status" class="status" hidden>
+      <p id="status-message" role="status" aria-live="polite"></p>
+      <progress id="operation-progress" max="100" aria-label="전체 작업 진행률" hidden></progress>
+      <p id="remaining-time" class="hint" role="timer"></p>
+    </div>
 
     <section id="question-progress" class="card question-progress" aria-labelledby="question-progress-title" hidden>
       <div class="card-head">

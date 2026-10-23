@@ -138,6 +138,12 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 .editor-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .editor-actions { display: flex; gap: 4px; }
 .notice { margin: 12px 0 0; font-size: 13px; color: var(--ink-2); }
+.question-paper { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.question-paper summary { cursor: pointer; font-weight: 600; }
+.question-paper .hint { text-align: left; margin-bottom: 12px; }
+.question-paper label { display: block; font-size: 13px; margin: 12px 0 8px; }
+.question-paper .paper-upload { display: inline-flex; border: 1px solid var(--line-strong); }
+#question-paper { min-height: 140px; }
 
 .batch { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
 .batch-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 14px; }
@@ -171,11 +177,8 @@ textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3
 .primary-button:hover:not(:disabled) { background: var(--accent-hover); }
 .primary-button:active:not(:disabled) { transform: scale(.99); }
 .primary-button:disabled { opacity: .35; }
-/* While making, the button becomes a moving progress stripe */
 .card:has(#cancel:not([hidden])) .primary-button {
   opacity: 1;
-  background: repeating-linear-gradient(-45deg, var(--accent) 0 12px, var(--accent-hover) 12px 24px);
-  background-size: 33.94px 33.94px; animation: stripes .9s linear infinite;
 }
 .cancel { display: block; margin: 8px auto 0; }
 .hint { margin: 10px 0 0; font-size: 13px; color: var(--ink-3); text-align: center; }
@@ -210,6 +213,9 @@ select option { background: var(--card); color: var(--ink); }
 /* Status */
 .status { padding: 12px 16px; border-radius: var(--r-box); background: var(--accent-soft); color: var(--ink); font-size: 14px; animation: rise .3s var(--ease); }
 .status.error { background: var(--err-soft); color: var(--err); }
+.status > p { margin: 0; }
+#operation-progress { display: block; width: 100%; height: 12px; margin-top: 12px; accent-color: var(--accent); }
+#remaining-time:not(:empty) { margin-top: 8px; text-align: left; }
 
 /* 3. Listen */
 .question-progress .card-head { margin-bottom: 8px; }

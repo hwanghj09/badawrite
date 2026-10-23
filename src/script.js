@@ -140,6 +140,16 @@ export function encodeWav(samples, sampleRate = 24000) {
   return buffer;
 }
 
+export function joinWav(blobs) {
+  const bytes = blobs.reduce((sum, blob) => sum + blob.size - 44, 0);
+  if (bytes > 0xffffffff - 36) throw new Error('WAV 파일이 너무 커요. 대본을 나눠 주세요.');
+  const header = encodeWav(new Float32Array());
+  const view = new DataView(header);
+  view.setUint32(4, 36 + bytes, true);
+  view.setUint32(40, bytes, true);
+  return new Blob([header, ...blobs.map(blob => blob.slice(44))], { type: 'audio/wav' });
+}
+
 export function joinAudio(clips, gapSeconds, sampleRate = 24000) {
   const gap = Math.round(gapSeconds * sampleRate);
   const output = new Float32Array(clips.reduce((sum, c) => sum + c.length, 0) + Math.max(0, clips.length - 1) * gap);

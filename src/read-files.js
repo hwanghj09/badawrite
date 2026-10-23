@@ -49,12 +49,15 @@ export function createFileReader(signal, progress) {
     } finally { if (owned) canvas.width = canvas.height = 0; }
   }
   return {
-    async read(file) {
+    async read(file, { raw = false } = {}) {
       signal.throwIfAborted();
       if (file.size > 20 * 1024 * 1024) throw new Error('파일당 20MB까지 지원합니다.');
       const kind = fileKind(file);
       if (kind === 'text') return (await file.text()).replace(/^\uFEFF/, '');
-      if (kind === 'image') return listeningFromOcr(await recognize(file));
+      if (kind === 'image') {
+        const text = await recognize(file);
+        return raw ? text : listeningFromOcr(text);
+      }
       const { getDocument, GlobalWorkerOptions, version } = await import('pdfjs-dist/build/pdf.mjs');
       const { default: workerUrl } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
       GlobalWorkerOptions.workerSrc = workerUrl;
@@ -86,7 +89,7 @@ export function createFileReader(signal, progress) {
           pages.push(text); page.cleanup();
         }
         const text = pages.join('\n\n');
-        return scanned ? listeningFromOcr(text) : text;
+        return scanned && !raw ? listeningFromOcr(text) : text;
       } finally {
         await task.destroy(); pdf = undefined;
       }
