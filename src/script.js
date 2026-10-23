@@ -7,11 +7,26 @@ export function parseScript(text) {
   let current;
   let translation = false;
   let role = 'W';
-  for (const original of text.replace(/\r/g, '').replace(/([.!?\]])(?=(?:M|W)\s*[:：])/g, '$1\n').replace(/\s+(?=(?:M|W)\s*[:：])/g, '\n').split('\n')) {
+  const answerSheet = /정\s*답\s*및\s*해\s*설|듣\s*기\s*대\s*본/.test(text);
+  const lines = text.replace(/\r/g, '').replace(/([.!?\]])(?=(?:M|W)\s*[:：])/g, '$1\n').replace(/\s+(?=(?:M|W)\s*[:：])/g, '\n').split('\n');
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const original = lines[lineIndex];
     let line = original.replace(/\s+/g, ' ').trim();
     if (!line) continue;
+    if (/^\d{1,2}$/.test(line) && Number(line) >= 1 && Number(line) <= 45) {
+      const next = lines.slice(lineIndex + 1, lineIndex + 16).map(l => l.trim()).filter(Boolean).slice(0, 5);
+      const roleIndex = next.findIndex(l => speaker.test(l));
+      const numberIndex = next.findIndex(l => /^\d{1,2}$/.test(l));
+      const previousNumber = Number(current?.id.split('–').at(-1) || 0);
+      // Skip answer icons between the number and dialogue, but not page footers
+      // or the separate 16/17 answer explanations after a shared 16–17 passage.
+      if (Number(line) > previousNumber && roleIndex >= 0 && (numberIndex < 0 || roleIndex < numberIndex)) line += '번';
+    }
+    if (/^(?:\d{1,2}\s*[①②③④⑤]\s*)+$/.test(line)) continue;
+    if (!speaker.test(line) && /^[A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*\s*[:：]$/.test(line)) continue;
     if (/^\d+(?:\s+\d+)?$/.test(line) || /^(?:ANN\s*[:：]|Signal\b|\d+번부터)/i.test(line)) continue;
-    const title = line.match(heading);
+    const title = line.match(heading) || line.match(/^(\d{1,2})\s*[-~–∼]\s*(\d{1,2})\s+(.+)$/);
+    if (title && answerSheet && (Number(title[1]) < 1 || Number(title[1]) > 45)) continue;
     if (title) {
       const id = title[2] ? `${title[1]}–${title[2]}` : title[1];
       current = { id, prompt: '', turns: [], options: [], answer: null, endPause: 0, repeat: id.includes('–') ? 2 : 1, warnings: [] };
@@ -22,17 +37,26 @@ export function parseScript(text) {
       if (!line) continue;
     }
     if (!current) {
+      if (answerSheet && !speaker.test(line)) continue;
       if (!speaker.test(line) && /[가-힣]/.test(line)) continue;
       current = { id: '1', prompt: '', turns: [], options: [], answer: null, endPause: 0, repeat: 1, warnings: [] };
       questions.push(current);
     }
     const answer = line.match(/^(?:\[?정답\]?|Answer)\s*[:：]?\s*([①②③④⑤1-5])/i);
     if (answer) { current.answer = circled.includes(answer[1]) ? circled.indexOf(answer[1]) + 1 : Number(answer[1]); continue; }
-    if (/^(?:\[?(?:해석|해설|어휘|우리말|번역)\]?)/.test(line)) { translation = true; continue; }
+    const section = line.replace(/[\s\[\]()【】•·※<>〈〉-]/g, '');
+    if (/^(?:해석|해설|어휘|우리말|번역)/.test(section)) { translation = true; continue; }
     if (translation) continue;
     if (/다시\s*한\s*번\s*듣겠/.test(line)) { current.repeatAt = current.turns.length; continue; }
     if (/^[①②③④⑤]/.test(line)) { current.options.push(line); continue; }
     const turn = line.match(speaker);
+    if (answerSheet && current.turns.some(t => t.speaker)) {
+      const content = turn ? turn[2] : line;
+      const korean = (content.match(/[가-힣]/g) || []).length;
+      const english = (content.match(/[a-z]/gi) || []).length;
+      if (turn && korean >= 3 && korean > english) { translation = true; continue; }
+    }
+    if (answerSheet && !turn && /^[A-Z0-9()|®© _-]{1,12}$/.test(line)) continue;
     if (turn) {
       role = /^(W|F|Woman|Female|Girl|여|여자)$/i.test(turn[1]) ? 'W' : 'M';
       line = turn[2].trim();
@@ -104,14 +128,22 @@ export function joinAudio(clips, gapSeconds, sampleRate = 24000) {
 
 export function splitSpeech(text) {
   const chunks = [];
+  let chunk = '';
   for (const { segment } of new Intl.Segmenter('en', { granularity: 'sentence' }).segment(text)) {
-    let chunk = '';
-    for (const word of segment.trim().split(/\s+/)) {
+    const sentence = segment.trim().replace(/\s+/g, ' ');
+    if (!sentence) continue;
+    // Keep short sentences together to avoid a model inference for every sentence.
+    if (sentence.length <= 200) {
+      if (chunk && chunk.length + sentence.length + 1 > 200) { chunks.push(chunk); chunk = ''; }
+      chunk += `${chunk ? ' ' : ''}${sentence}`;
+      continue;
+    }
+    for (const word of sentence.split(' ')) {
       if (word.length > 200) throw new Error('지나치게 긴 단어가 있어요. OCR 결과의 띄어쓰기를 확인해 주세요.');
       if (chunk && chunk.length + word.length + 1 > 200) { chunks.push(chunk); chunk = ''; }
       chunk += `${chunk ? ' ' : ''}${word}`;
     }
-    if (chunk) chunks.push(chunk);
   }
+  if (chunk) chunks.push(chunk);
   return chunks;
 }

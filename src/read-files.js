@@ -1,4 +1,6 @@
 import { textFromPdfItems } from './pdf-text.js';
+import { readingRegions } from './ocr-layout.js';
+import { listeningFromOcr } from './ocr-script.js';
 
 export function fileKind(file) {
   if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) return 'pdf';
@@ -23,9 +25,28 @@ export function createFileReader(signal, progress) {
       ocr = await createWorker('eng+kor', 1, {
         logger: p => { if (p.status === 'recognizing text') progress(`글자 인식 ${Math.round(p.progress * 100)}%`); },
       });
+      await ocr.setParameters({ tessedit_pageseg_mode: '6' });
     }
     signal.throwIfAborted();
-    return (await ocr.recognize(image)).data.text;
+    const owned = !(image instanceof HTMLCanvasElement);
+    const canvas = owned ? document.createElement('canvas') : image;
+    if (owned) {
+      const bitmap = await createImageBitmap(image);
+      const scale = Math.min(1, Math.sqrt(6000000 / (bitmap.width * bitmap.height)));
+      canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+    }
+    try {
+      const regions = readingRegions(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height));
+      const texts = [];
+      for (const [index, rectangle] of regions.entries()) {
+        signal.throwIfAborted();
+        if (regions.length > 1) progress(`${index === 0 ? '왼쪽' : '오른쪽'} 단 글자 읽는 중`);
+        texts.push((await ocr.recognize(canvas, { rectangle })).data.text);
+      }
+      return texts.join('\n\n');
+    } finally { if (owned) canvas.width = canvas.height = 0; }
   }
   return {
     async read(file) {
@@ -33,7 +54,7 @@ export function createFileReader(signal, progress) {
       if (file.size > 20 * 1024 * 1024) throw new Error('파일당 20MB까지 지원합니다.');
       const kind = fileKind(file);
       if (kind === 'text') return (await file.text()).replace(/^\uFEFF/, '');
-      if (kind === 'image') return recognize(file);
+      if (kind === 'image') return listeningFromOcr(await recognize(file));
       const { getDocument, GlobalWorkerOptions, version } = await import('pdfjs-dist/build/pdf.mjs');
       const { default: workerUrl } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
       GlobalWorkerOptions.workerSrc = workerUrl;
@@ -45,14 +66,16 @@ export function createFileReader(signal, progress) {
         const pdfDocument = await task.promise;
         if (pdfDocument.numPages > 100) throw new Error('PDF는 파일당 100쪽까지 지원합니다.');
         const pages = [];
+        let scanned = false;
         for (let n = 1; n <= pdfDocument.numPages; n++) {
           signal.throwIfAborted();
           progress(`PDF ${n}/${pdfDocument.numPages}쪽 읽는 중`);
           const page = await pdfDocument.getPage(n);
           let text = textFromPdfItems((await page.getTextContent()).items);
           if (text.replace(/\s/g, '').length < 30) {
+            scanned = true;
             const initial = page.getViewport({ scale: 1 });
-            const scale = Math.min(2, Math.sqrt(6000000 / (initial.width * initial.height)));
+            const scale = Math.min(3, Math.sqrt(6000000 / (initial.width * initial.height)));
             const viewport = page.getViewport({ scale });
             const canvas = document.createElement('canvas');
             canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
@@ -62,7 +85,8 @@ export function createFileReader(signal, progress) {
           }
           pages.push(text); page.cleanup();
         }
-        return pages.join('\n\n');
+        const text = pages.join('\n\n');
+        return scanned ? listeningFromOcr(text) : text;
       } finally {
         await task.destroy(); pdf = undefined;
       }

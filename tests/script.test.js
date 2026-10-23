@@ -19,6 +19,23 @@ test('plain English works, empty and Korean-only input produce no passages', () 
   assert.equal(parseScript('해설만 있는 문서입니다.').length, 0);
   assert.equal(parseScript('').length, 0);
 });
+test('running answer-sheet headers do not suppress dialogue continuing on the next page', () => {
+  const questions = parseScript('정답 및 해설\n8. [출제의도] 정보\nW: This sounds great.\n1\n정답 및 해설\nW: That makes it even better.\nM: Then let us book it now.');
+  assert.deepEqual(questions[0].turns, [
+    { speaker: 'W', text: 'This sounds great.' },
+    { speaker: 'W', text: 'That makes it even better.' },
+    { speaker: 'M', text: 'Then let us book it now.' },
+  ]);
+});
+test('answer-sheet grids are silent and a bare shared-passage heading starts its own repeated passage', () => {
+  const grid = '1 ⑤\n2 ②\n3 ① 4 ④ 5 ⑤';
+  assert.deepEqual(parseScript(grid), []);
+  const questions = parseScript(`${grid}\n1. [출제의도] 담화의 목적\nW: Welcome.\n15. [출제의도] 상황\nM: Please help.\nAnna:\n16~17 긴 담화 듣기\nW: Today we learn about buildings.\n16. [출제의도] 주제\n17. [출제의도] 세부 내용\n[읽기]\n18. [출제의도] 글의 목적\n[해석]\nThis translation must not be spoken.`);
+  assert.deepEqual(questions.map(q => q.id), ['1', '15', '16–17']);
+  assert.equal(questions[2].repeat, 2);
+  assert.deepEqual(questions[1].turns, [{ speaker: 'M', text: 'Please help.' }]);
+  assert.deepEqual(questions[2].turns, [{ speaker: 'W', text: 'Today we learn about buildings.' }]);
+});
 test('WAV has valid PCM header, clipping and exact silence between clips', () => {
   const samples = joinAudio([new Float32Array([-2, 0]), new Float32Array([2])], 0.5, 4);
   assert.deepEqual([...samples], [-2, 0, 0, 0, 2]);
