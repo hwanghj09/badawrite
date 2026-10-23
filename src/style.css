@@ -320,6 +320,9 @@ select:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Practice */
 .practice-panel { margin-top: 20px; }
+.question-progress { margin-top: 20px; padding: 20px 28px; }
+.question-progress .practice-heading { margin-bottom: 8px; }
+.question-progress .batch-help { margin: 0; }
 .practice-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
 .practice-heading .panel-title { margin: 0; }
 .count-badge { font-size: 13px; color: var(--ink-2); background: var(--sunk); border-radius: 999px; padding: 4px 12px; white-space: nowrap; }

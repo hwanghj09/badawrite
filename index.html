@@ -99,6 +99,15 @@
 
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
 
+    <section id="question-progress" class="panel question-progress" aria-labelledby="question-progress-title" hidden>
+      <div class="practice-heading">
+        <h2 id="question-progress-title" class="panel-title">문항별 바로 듣기</h2>
+        <span id="ready-count" class="count-badge" role="status"></span>
+      </div>
+      <p class="batch-help">전체 생성을 기다리지 않아도 돼요. 준비된 번호를 누르면 바로 재생해요.</p>
+      <div id="question-list" class="question-list" aria-label="문항 선택"></div>
+    </section>
+
     <section id="practice" class="panel practice-panel rise" style="--d: 240ms" aria-labelledby="practice-title" hidden>
       <div class="practice-heading">
         <h2 id="practice-title" class="panel-title"><span class="step" aria-hidden="true">3</span>듣고 풀기</h2>
@@ -125,7 +134,6 @@
         </div>
         <p>대본을 넣으면 문항과 선택지가 답안지처럼 정리돼요.</p>
       </div>
-      <div id="question-list" class="question-list" aria-label="문항 선택"></div>
       <div id="exercise" hidden>
         <div class="exercise-heading">
           <div><span id="exercise-number" class="exercise-number"></span><h3 id="exercise-prompt"></h3></div>
@@ -140,6 +148,6 @@
   </main>
 
   <footer class="footer"><span>made by <strong>hwanghj09</strong></span></footer>
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/bootstrap.js"></script>
 </body>
 </html>
