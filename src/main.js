@@ -22,22 +22,6 @@ function showStatus(message, error = false) {
   $('status').classList.toggle('error', error);
   $('status').textContent = message;
 }
-function tab(name) {
-  for (const type of ['image', 'text']) {
-    const current = type === name;
-    $(`${type}-pane`).hidden = !current;
-    $(`${type}-tab`).classList.toggle('selected', current);
-    $(`${type}-tab`).setAttribute('aria-selected', String(current));
-  }
-}
-$('image-tab').onclick = () => tab('image');
-$('text-tab').onclick = () => tab('text');
-for (const name of ['image', 'text']) $(`${name}-tab`).onkeydown = event => {
-  if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-    event.preventDefault();
-    const next = name === 'image' ? 'text' : 'image'; tab(next); $(`${next}-tab`).focus();
-  }
-};
 function refreshControls() {
   const busy = Boolean(operation);
   for (const id of ['script', 'file-input', 'clear', 'new-document', 'turn-gap', 'question-gap', 'repeat']) $(id).disabled = busy;
@@ -49,6 +33,8 @@ function refreshControls() {
   }
   $('cancel').hidden = !busy;
   $('download-all').disabled = busy || !documents.some(d => d.output);
+  // The file list only matters once there is more than one script to switch between.
+  $('batch-panel').hidden = documents.length < 2;
   renderDocuments(); renderQuestions();
 }
 function discardOutput(doc) {
@@ -89,7 +75,12 @@ function loadAudio() {
   const output = active.output;
   const preview = active.previews[selected];
   const track = output || preview;
+  const revealing = track && $('practice').hidden;
   $('practice').hidden = !track;
+  if (revealing) {
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => $('practice').scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }));
+  }
   if (track) {
     playback = { doc: active, url: track.url, preview: !output, index: selected };
     audio.src = track.url; audio.playbackRate = Number($('speed').value);
@@ -192,7 +183,7 @@ $('script').oninput = () => {
 $('clear').onclick = () => { $('script').value = ''; $('script').oninput(); $('status').hidden = true; };
 $('new-document').onclick = () => {
   if (documents.length >= 20) return showStatus('파일은 최대 20개까지 관리할 수 있어요.', true);
-  const doc = newDocument(); documents.push(doc); selectDocument(doc); tab('text'); refreshControls(); $('script').focus();
+  const doc = newDocument(); documents.push(doc); selectDocument(doc); refreshControls(); $('script').focus();
 };
 for (const id of ['turn-gap', 'question-gap', 'repeat']) $(id).onchange = () => {
   listening = false; waiting = undefined;

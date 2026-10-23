@@ -3,143 +3,110 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0d1420" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0e131b" media="(prefers-color-scheme: dark)" />
   <meta name="description" content="답지 속 영어 대본을 듣기 연습으로. 사진 OCR, 남녀 화자 음성, 문항별 연습과 WAV 다운로드를 무료로 이용하세요." />
   <title>badawrite · 영어 듣기</title>
   <script>
     try { const theme = localStorage.getItem('theme'); if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme; } catch {}
   </script>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231c3f6e'/%3E%3Cpath d='M14 26v12M22 20v24M30 28v8M38 16v32M46 24v16' stroke='%23f4f7fc' stroke-width='5' stroke-linecap='round'/%3E%3Ccircle cx='52' cy='14' r='5' fill='%23e0455d'/%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231f4b8f'/%3E%3Cpath d='M16 26v12M24 20v24M32 28v8M40 16v32M48 24v16' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
 </head>
 <body>
-  <a class="skip-link" href="#editor-title">본문으로 건너뛰기</a>
   <header class="masthead">
-    <div class="masthead-inner">
-      <a class="brand" href="#studio" aria-label="badawrite 처음으로">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-        <span class="brand-name">bada<span>write</span></span>
-      </a>
-      <div class="masthead-tools">
-        <button id="theme-toggle" class="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="다크 모드">
-          <span class="theme-thumb" aria-hidden="true"></span>
-          <svg class="theme-icon sun" aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-          <svg class="theme-icon moon" aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>
-        </button>
-      </div>
-    </div>
+    <a class="brand" href="#studio" aria-label="badawrite 처음으로">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>badawrite
+    </a>
+    <button id="theme-toggle" class="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="다크 모드">
+      <svg class="theme-icon moon" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>
+      <svg class="theme-icon sun" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
   </header>
 
   <main id="studio" class="page">
-    <section class="intro rise">
-      <p class="eyebrow">수능 · 모의고사 영어 듣기</p>
-      <h1>답지 속 대본을 <em>듣기 파일</em>로</h1>
-      <p class="lede">파일을 올리고 듣기 만들기만 누르세요. 완성된 문항부터 바로 들을 수 있어요.</p>
+    <section class="intro">
+      <h1>대본을 넣으면 듣기 파일이 돼요</h1>
+      <p>영어 듣기 대본을 올리고 버튼 하나만 누르세요.</p>
     </section>
 
-    <div class="workspace">
-      <section class="panel editor-panel rise" style="--d: 80ms" aria-labelledby="editor-title">
-        <h2 id="editor-title" class="panel-title"><span class="step current" aria-hidden="true">1</span>대본 가져오기</h2>
-        <div class="tabs" role="tablist" aria-label="대본 입력 방식">
-          <button id="image-tab" class="tab selected" role="tab" aria-selected="true" aria-controls="image-pane">파일 업로드</button>
-          <button id="text-tab" class="tab" role="tab" aria-selected="false" aria-controls="text-pane">텍스트</button>
-        </div>
-        <div id="image-pane" class="pane" role="tabpanel" aria-labelledby="image-tab">
-          <label id="dropzone" class="dropzone" for="file-input">
-            <span class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
-            <strong>여러 파일을 한 번에 올려주세요</strong>
-            <span class="drop-sub">PDF는 전체 페이지를 읽고, 사진은 글자를 인식해요</span>
-            <span class="outline-button">파일 여러 개 선택</span>
-            <span class="file-hint">PDF · JPG · PNG · WEBP · TXT · 최대 20개 · 파일당 20MB</span>
-          </label>
-          <input id="file-input" class="visually-hidden" type="file" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp,text/plain,.txt" multiple />
-        </div>
-        <div id="text-pane" class="pane" role="tabpanel" aria-labelledby="text-tab" hidden>
-          <label for="script" class="field-label">영어 대본 <span>사진에서 읽은 내용도 여기서 고쳐요</span></label>
-          <textarea id="script" spellcheck="false" placeholder="영어 대본을 붙여넣어 주세요.&#10;&#10;W:는 여자, M:은 남자 화자입니다.&#10;다음 줄에 이어진 대사는 같은 화자가 읽어요.&#10;[Chime bell rings.], [Pause], (10 seconds)도 구분합니다."></textarea>
-          <div class="editor-bottom"><span id="char-count">0자</span><button id="clear" class="text-button">비우기</button></div>
-        </div>
-        <p id="parse-notice" class="parse-notice" role="note" hidden></p>
-        <section class="batch-panel" aria-label="변환할 파일 목록">
-          <div class="batch-heading"><strong id="batch-count"></strong><button id="new-document" class="text-button">텍스트 파일 추가</button></div>
-          <div id="document-list" class="document-list"></div>
-          <button id="download-all" class="download-button" disabled>완료된 파일 ZIP 저장</button>
-          <p class="batch-help">각 파일을 눌러 대본을 확인하세요. 번호가 같아도 파일별로 분리됩니다. 새로고침 전에 대본과 음성을 저장하세요.</p>
-        </section>
-      </section>
+    <section class="card" aria-labelledby="editor-title">
+      <h2 id="editor-title" class="card-title"><span class="step current" aria-hidden="true">1</span>대본 넣기</h2>
+      <label id="dropzone" class="dropzone" for="file-input">
+        <span class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+        <span class="drop-text"><strong>파일 올리기</strong><span>PDF · 사진 · TXT, 끌어다 놓거나 눌러서 선택</span></span>
+      </label>
+      <input id="file-input" class="visually-hidden" type="file" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp,text/plain,.txt" multiple />
 
-      <section class="panel settings-panel rise" style="--d: 160ms" aria-labelledby="settings-title">
-        <h2 id="settings-title" class="panel-title"><span class="step" aria-hidden="true">2</span>음성 만들기</h2>
-        <p class="default-help">남녀 화자는 자동으로 나눠요.<br>16~17번 공통 지문은 자동으로 두 번 들려줘요.</p>
-        <div class="generate-area">
-          <button id="generate" class="primary-button" disabled><span>✦</span> 듣기 만들기 <span>→</span></button>
-          <button id="cancel" class="text-button" hidden>생성 취소</button>
-          <p>첫 실행은 음성 모델을 내려받아 몇 분 걸릴 수 있어요</p>
-        </div>
-        <details id="voice-settings" class="voice-settings">
-          <summary>음성 설정</summary>
-        <ul class="voices" aria-label="화자 음성">
-          <li class="voice-row"><span class="voice-avatar woman" aria-hidden="true">W</span><div><strong>Heart</strong><small>여자 화자</small></div></li>
-          <li class="voice-row"><span class="voice-avatar man" aria-hidden="true">M</span><div><strong>Michael</strong><small>남자 화자</small></div></li>
-        </ul>
-        <div class="settings">
-          <label class="setting-line" for="turn-gap">화자 사이 간격
-            <select id="turn-gap"><option value="0.25">0.25초</option><option value="0.5" selected>0.5초</option><option value="1">1초</option></select>
-          </label>
-          <label class="setting-line" for="question-gap">문항 사이 간격
-            <select id="question-gap"><option value="3">3초</option><option value="5" selected>5초</option><option value="10">10초</option><option value="15">15초</option></select>
-          </label>
-          <label class="setting-line repeat-line" for="repeat">모든 문항 두 번 듣기
-            <input id="repeat" type="checkbox" role="switch" />
-          </label>
-        </div>
-        </details>
+      <div class="divider"><span>또는 직접 붙여넣기</span></div>
+      <label for="script" class="visually-hidden">영어 대본</label>
+      <textarea id="script" spellcheck="false" placeholder="1. W: Hi, Daniel. How was your weekend?&#10;M: It was great! I went to the park.&#10;&#10;W:는 여자, M:은 남자 목소리로 읽어요."></textarea>
+      <div class="editor-bottom">
+        <span id="char-count">0자</span>
+        <span class="editor-actions"><button id="new-document" class="text-button">대본 추가</button><button id="clear" class="text-button">비우기</button></span>
+      </div>
+      <p id="parse-notice" class="notice" role="note" hidden></p>
+
+      <section id="batch-panel" class="batch" aria-label="대본 목록" hidden>
+        <div class="batch-heading"><strong id="batch-count"></strong><button id="download-all" class="text-button" disabled>전체 ZIP 저장</button></div>
+        <div id="document-list" class="document-list"></div>
       </section>
-    </div>
+    </section>
+
+    <section class="card" aria-labelledby="settings-title">
+      <h2 id="settings-title" class="card-title"><span class="step" aria-hidden="true">2</span>듣기 만들기</h2>
+      <button id="generate" class="primary-button" disabled>듣기 만들기 →</button>
+      <button id="cancel" class="text-button cancel" hidden>만들기 취소</button>
+      <p class="hint">남녀 목소리는 자동으로 나눠요. 처음 한 번은 음성 모델을 받느라 몇 분 걸려요.</p>
+      <details id="voice-settings" class="settings">
+        <summary>간격 설정</summary>
+        <label class="setting-line" for="turn-gap">화자 사이
+          <select id="turn-gap"><option value="0.25">0.25초</option><option value="0.5" selected>0.5초</option><option value="1">1초</option></select>
+        </label>
+        <label class="setting-line" for="question-gap">문항 사이
+          <select id="question-gap"><option value="3">3초</option><option value="5" selected>5초</option><option value="10">10초</option><option value="15">15초</option></select>
+        </label>
+        <label class="setting-line" for="repeat">모든 문항 두 번 듣기
+          <input id="repeat" class="switch" type="checkbox" role="switch" />
+        </label>
+      </details>
+    </section>
 
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
 
-    <section id="question-progress" class="panel question-progress" aria-labelledby="question-progress-title" hidden>
-      <div class="practice-heading">
-        <h2 id="question-progress-title" class="panel-title">문항별 바로 듣기</h2>
-        <span id="ready-count" class="count-badge" role="status"></span>
+    <section id="question-progress" class="card question-progress" aria-labelledby="question-progress-title" hidden>
+      <div class="card-head">
+        <h2 id="question-progress-title" class="card-title">문항별 바로 듣기</h2>
+        <span id="ready-count" class="count" role="status"></span>
       </div>
       <p class="batch-help">전체 생성을 기다리지 않아도 돼요. 준비된 번호를 누르면 바로 재생해요.</p>
       <div id="question-list" class="question-list" aria-label="문항 선택"></div>
     </section>
 
-    <section id="practice" class="panel practice-panel rise" style="--d: 240ms" aria-labelledby="practice-title" hidden>
-      <div class="practice-heading">
-        <h2 id="practice-title" class="panel-title"><span class="step" aria-hidden="true">3</span>듣고 풀기</h2>
-        <span id="question-count" class="count-badge">대본을 기다리고 있어요</span>
+    <section id="practice" class="card" aria-labelledby="practice-title" hidden>
+      <div class="card-head">
+        <h2 id="practice-title" class="card-title"><span class="step" aria-hidden="true">3</span>듣고 풀기</h2>
+        <span id="question-count" class="count"></span>
       </div>
       <div class="player">
         <button id="play" class="play-button" aria-label="재생" disabled>▶</button>
         <div class="player-track">
-          <div class="track-top"><span class="track-name"><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><strong id="track-title">나만의 듣기 파일</strong></span><span id="time">00:00 / 00:00</span></div>
+          <div class="track-top"><span class="track-name"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><strong id="track-title">나만의 듣기 파일</strong></span><span id="time">00:00 / 00:00</span></div>
           <input id="seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="재생 위치" disabled />
           <div class="track-bottom">
-            <span id="player-caption">음성을 만들면 여기서 재생돼요</span>
+            <span id="player-caption"></span>
             <select id="speed" aria-label="재생 속도"><option value="0.75">0.75×</option><option value="0.9">0.9×</option><option value="1" selected>1.0×</option><option value="1.1">1.1×</option><option value="1.25">1.25×</option></select>
           </div>
         </div>
-        <button id="download" class="download-button" disabled aria-label="WAV 파일 다운로드"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg><span>WAV 저장</span></button>
+        <button id="download" class="save-button" disabled aria-label="WAV 파일 저장"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg><span>저장</span></button>
       </div>
       <audio id="audio" preload="metadata"></audio>
-      <div id="empty-practice" class="empty-practice">
-        <div class="omr-ghost" aria-hidden="true">
-          <span>1</span><i></i><i></i><i></i><i></i><i></i>
-          <span>2</span><i></i><i></i><i></i><i></i><i></i>
-          <span>3</span><i></i><i></i><i></i><i></i><i></i>
-        </div>
-        <p>대본을 넣으면 문항과 선택지가 답안지처럼 정리돼요.</p>
-      </div>
-      <div id="exercise" hidden>
+      <div id="empty-practice" class="visually-hidden"></div>
+      <div id="exercise" class="exercise" hidden>
         <div class="exercise-heading">
           <div><span id="exercise-number" class="exercise-number"></span><h3 id="exercise-prompt"></h3></div>
-          <label class="hide-script" for="show-script"><input id="show-script" type="checkbox" /> 대본 보기</label>
+          <label class="check" for="show-script"><input id="show-script" type="checkbox" /> 대본 보기</label>
         </div>
-        <div id="exercise-subquestions" class="exercise-subquestions" hidden></div>
+        <div id="exercise-subquestions" class="subquestions" hidden></div>
         <div id="options" class="options"></div>
         <p id="answer-feedback" class="feedback" role="status"></p>
         <div id="transcript" class="transcript" hidden></div>
@@ -147,7 +114,7 @@
     </section>
   </main>
 
-  <footer class="footer"><span>made by <strong>hwanghj09</strong></span></footer>
+  <footer class="footer">made by <strong>hwanghj09</strong></footer>
   <script type="module" src="/src/bootstrap.js"></script>
 </body>
 </html>
