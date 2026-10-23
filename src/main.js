@@ -1,4 +1,3 @@
-import './style.css';
 import './theme.js';
 import { parseScript } from './script.js';
 import { createFileReader } from './read-files.js';
@@ -247,9 +246,16 @@ function generate(doc, settings, progress) {
       if (data.type === 'status') progress(data.message);
       else if (data.type === 'question') receiveQuestion(doc, data);
       else if (data.type === 'done') resolve(data);
+      else if (data.type === 'error' && data.retryWithWasm && !settings.forceWasm) {
+        // A failed ONNX session can poison the inference queue. Use a fresh
+        // worker for CPU fallback, retaining already playable question previews.
+        worker.terminate(); worker = undefined;
+        progress('이 기기에서는 GPU 가속을 사용할 수 없어 CPU로 전환해요.');
+        generate(doc, { ...settings, forceWasm: true }, progress).then(resolve, reject);
+      }
       else if (data.type === 'error') reject(new Error(data.message));
     };
-    worker.postMessage({ questions: doc.questions, ...settings });
+    worker.postMessage({ questions: doc.questions, ...settings, skipPreviews: doc.previews.flatMap((preview, index) => preview ? [index] : []) });
   });
 }
 $('generate').onclick = async () => {
