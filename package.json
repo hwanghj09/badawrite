@@ -1,0 +1,13 @@
+{
+  "name": "bada-listen",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": { "kokoro-js": "1.2.1", "tesseract.js": "7.0.0" },
+  "devDependencies": { "vite": "7.3.1" }
+}
