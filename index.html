@@ -34,7 +34,7 @@
     <section class="intro rise">
       <p class="eyebrow">수능 · 모의고사 영어 듣기</p>
       <h1>답지 속 대본을 <em>듣기 파일</em>로</h1>
-      <p class="lede">PDF·사진·텍스트를 여러 개 올리고, W/M 화자를 나눠 파일별 듣기 음성으로 만드세요.</p>
+      <p class="lede">파일을 올리고 듣기 만들기만 누르세요. 완성된 문항부터 바로 들을 수 있어요.</p>
     </section>
 
     <div class="workspace">
@@ -70,6 +70,14 @@
 
       <section class="panel settings-panel rise" style="--d: 160ms" aria-labelledby="settings-title">
         <h2 id="settings-title" class="panel-title"><span class="step" aria-hidden="true">2</span>음성 만들기</h2>
+        <p class="default-help">남녀 화자는 자동으로 나눠요.<br>16~17번 공통 지문은 자동으로 두 번 들려줘요.</p>
+        <div class="generate-area">
+          <button id="generate" class="primary-button" disabled><span>✦</span> 듣기 만들기 <span>→</span></button>
+          <button id="cancel" class="text-button" hidden>생성 취소</button>
+          <p>첫 실행은 음성 모델을 내려받아 몇 분 걸릴 수 있어요</p>
+        </div>
+        <details id="voice-settings" class="voice-settings">
+          <summary>음성 설정</summary>
         <ul class="voices" aria-label="화자 음성">
           <li class="voice-row"><span class="voice-avatar woman" aria-hidden="true">W</span><div><strong>Heart</strong><small>여자 화자</small></div></li>
           <li class="voice-row"><span class="voice-avatar man" aria-hidden="true">M</span><div><strong>Michael</strong><small>남자 화자</small></div></li>
@@ -81,15 +89,11 @@
           <label class="setting-line" for="question-gap">문항 사이 간격
             <select id="question-gap"><option value="3">3초</option><option value="5" selected>5초</option><option value="10">10초</option><option value="15">15초</option></select>
           </label>
-          <label class="setting-line repeat-line" for="repeat">두 번씩 듣기
+          <label class="setting-line repeat-line" for="repeat">모든 문항 두 번 듣기
             <input id="repeat" type="checkbox" role="switch" />
           </label>
         </div>
-        <div class="generate-area">
-          <button id="generate" class="primary-button" disabled><span>✦</span> 듣기 파일 만들기 <span>→</span></button>
-          <button id="cancel" class="text-button" hidden>생성 취소</button>
-          <p>첫 실행은 음성 모델을 내려받아 몇 분 걸릴 수 있어요</p>
-        </div>
+        </details>
       </section>
     </div>
 
@@ -127,6 +131,7 @@
           <div><span id="exercise-number" class="exercise-number"></span><h3 id="exercise-prompt"></h3></div>
           <label class="hide-script" for="show-script"><input id="show-script" type="checkbox" /> 대본 보기</label>
         </div>
+        <div id="exercise-subquestions" class="exercise-subquestions" hidden></div>
         <div id="options" class="options"></div>
         <p id="answer-feedback" class="feedback" role="status"></p>
         <div id="transcript" class="transcript" hidden></div>

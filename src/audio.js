@@ -1,4 +1,4 @@
-import { joinAudio, splitSpeech } from './script.js';
+import { splitSpeech } from './script.js';
 
 export const SAMPLE_RATE = 24000;
 export const VOICES = { M: 'am_michael', W: 'af_heart' };
@@ -13,30 +13,56 @@ export function chime(duration = 1.5) {
   return audio;
 }
 
-export async function synthesize(questions, settings, speak, progress = () => {}) {
+function assemble(clips, length) {
+  const samples = new Float32Array(length);
+  let offset = 0;
+  for (const clip of clips) {
+    if (typeof clip === 'number') offset += clip;
+    else { samples.set(clip, offset); offset += clip.length; }
+  }
+  return samples;
+}
+
+export async function synthesize(questions, settings, speak, progress = () => {}, onQuestion) {
   const clips = [];
   const markers = [];
-  let elapsed = 0;
-  for (const q of questions) {
+  let length = 0;
+  for (const [index, q] of questions.entries()) {
+    const clipStart = clips.length;
+    const sampleStart = length;
     const turns = [];
     for (let i = 0; i < q.turns.length; i++) {
       const turn = q.turns[i];
       progress(`${q.id}번 · ${i + 1}/${q.turns.length} 대사·지시 처리 중`);
       if (turn.type === 'chime') turns.push(chime(turn.duration));
-      else if (turn.type === 'pause') turns.push(new Float32Array(Math.round(turn.duration * SAMPLE_RATE)));
+      else if (turn.type === 'pause') turns.push(Math.round(turn.duration * SAMPLE_RATE));
       else {
-        const sentences = [];
-        for (const text of splitSpeech(turn.text)) sentences.push(await speak(text, VOICES[turn.speaker]));
-        if (i > 0 && q.turns[i - 1].speaker) turns.push(new Float32Array(Math.round(settings.turnGap * SAMPLE_RATE)));
-        turns.push(joinAudio(sentences, 0.08));
+        if (i > 0 && q.turns[i - 1].speaker) turns.push(Math.round(settings.turnGap * SAMPLE_RATE));
+        let first = true;
+        for (const text of splitSpeech(turn.text)) {
+          if (!first) turns.push(Math.round(0.08 * SAMPLE_RATE));
+          turns.push(await speak(text, VOICES[turn.speaker]));
+          first = false;
+        }
       }
     }
-    const passage = joinAudio(turns, 0);
-    const repeated = settings.repeat || q.repeat === 2 ? joinAudio([passage, passage], 3) : passage;
-    markers.push({ id: q.id, start: elapsed, end: elapsed + repeated.length / SAMPLE_RATE });
+    const start = length / SAMPLE_RATE;
+    const passageLength = turns.reduce((sum, clip) => sum + (typeof clip === 'number' ? clip : clip.length), 0);
+    for (const clip of turns) clips.push(clip);
+    length += passageLength;
+    if (settings.repeat || q.repeat === 2) {
+      clips.push(3 * SAMPLE_RATE);
+      for (const clip of turns) clips.push(clip);
+      length += 3 * SAMPLE_RATE + passageLength;
+    }
+    markers.push({ id: q.id, start, end: length / SAMPLE_RATE });
     const gap = q.endPause || (q !== questions.at(-1) ? settings.questionGap : 0);
-    clips.push(repeated, new Float32Array(Math.round(gap * SAMPLE_RATE)));
-    elapsed += repeated.length / SAMPLE_RATE + gap;
+    const silence = Math.round(gap * SAMPLE_RATE);
+    clips.push(silence); length += silence;
+    if (onQuestion) {
+      await onQuestion({ index, marker: markers.at(-1), samples: assemble(clips.slice(clipStart), length - sampleStart) });
+    }
   }
-  return { samples: joinAudio(clips, 0), markers };
+  // Allocate the final track once; silence and repeated passages need no temporary PCM copies.
+  return { samples: assemble(clips, length), markers };
 }
