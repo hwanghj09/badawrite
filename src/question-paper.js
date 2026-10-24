@@ -1,9 +1,14 @@
-const heading = /^(?:\[\s*)?(\d{1,2})(?:\s*번?\s*(?:[-~–∼]|과|및|&)\s*(\d{1,2}))?\s*(?:번\s*[.．:：\])]?|[.．)\]:：])\s*(.*)$/;
+const heading = /^(?:\[\s*)?(\d{1,2})(?:\s*번?\s*(?:[-~–∼]|과|및|&)\s*(\d{1,2}))?\s*(?:번(?!부터|까지)\s*[.．:：\])]?|[.,．)\]:：])\s*(.*)$/;
 const rangeHeading = /^(\d{1,2})\s*[-~–∼]\s*(\d{1,2})\s+(.+)$/;
 const choice = /[①②③④⑤]/;
-const metadata = /(?:^(?:\[?정답(?:\]|[:：①②③④⑤1-5]|및해설|$)|\[?(?:해설|출제의도|해석|어휘|번역))|학년도|학력평가|모의평가|수학능력시험|^제\d+교시|^영어영역|^\d+쪽|^페이지)/;
+const metadata = /(?:^(?:\[?정답(?:\]|[:：①②③④⑤1-5]|및해설|$)|\[?(?:해설|출제의도|해석|어휘|번역))|학년도|학력평가|모의평가|모의고사.*문제지|수학능력시험|^제\d+교시|^영어영역|^\d+쪽|^페이지|^이문제지.*(?:무단|재배포)|^이제듣기|^방송을잘|^따라답을|^\d{1,2}번(?:부터|까지)|^(?:홀수형|짝수형)$)/;
 const isMetadata = text => metadata.test(text.replace(/\s+/g, ''));
-const cleanPrompt = text => String(text || '').replace(/\[\s*\d+\s*점\s*\]|\(\s*\d+\s*점\s*\)/g, '').replace(/\s+/g, ' ').trim();
+const cleanPrompt = text => String(text || '')
+  .replace(/\[\s*\d*\s*점\s*\]|\(\s*\d+\s*점\s*\)/g, '')
+  .replace(/\s+/g, ' ').trim()
+  .replace(/(고르시오|답하시오)\s*[,，]$/, '$1.');
+const complete = text => /[?？.!。]$|(?:고르시오|답하시오|선택하시오)[,，]?$/.test(text.replace(/\s/g, ''));
+const noisyChoice = /^(?:[©®@⓵⓶⓷⓸⓹]|\(?[1-5]\)|[[(]?\s*[①②③④⑤])/;
 const spokenPrompt = text => {
   const prompt = cleanPrompt(text);
   return /[가-힣]/.test(prompt) && !isMetadata(prompt) ? prompt : '';
@@ -16,10 +21,16 @@ export function parseQuestionPaper(text) {
   for (const raw of String(text || '').replace(/[０-９]/g, digit => String(digit.charCodeAt(0) - 0xff10)).split(/\r?\n/)) {
     let line = raw.replace(/\s+/g, ' ').trim();
     if (!line) continue;
+    // OCR can turn "1." into "L" or insert a dot before "10.". Only
+    // recover the number when a recognisable question follows it.
+    line = line.replace(/^[.·]\s*(?=\d{1,2}[.,])/, '')
+      .replace(/^[ILl][.,]?\s+(?=(?:다음|대화))/, '1. ');
+    if (isMetadata(line)) { stopped = true; continue; }
     const title = line.match(heading) || line.match(rangeHeading);
     if (title) {
       const first = Number(title[1]);
       const last = title[2] ? Number(title[2]) : first;
+      if (first === 1 && last === 17) { current = undefined; continue; }
       if (first < 1 || last > 45 || last < first) { current = undefined; continue; }
       current = { id: title[2] ? `${first}–${last}` : String(first), prompt: '', options: [] };
       questions.push(current);
@@ -31,7 +42,8 @@ export function parseQuestionPaper(text) {
     if (stopped) continue;
     const choiceIndex = line.search(choice);
     const prompt = cleanPrompt(choiceIndex < 0 ? line : line.slice(0, choiceIndex));
-    if (!current.options.length && !/[?？.!。]$/.test(current.prompt) && /[가-힣]/.test(prompt)) {
+    if (noisyChoice.test(line) && choiceIndex < 0) { stopped = true; continue; }
+    if (!current.options.length && !complete(current.prompt) && /[가-힣]/.test(prompt)) {
       current.prompt += `${current.prompt ? ' ' : ''}${prompt}`;
     }
     if (choiceIndex >= 0) {
@@ -43,9 +55,32 @@ export function parseQuestionPaper(text) {
   return questions.filter(question => question.prompt);
 }
 
+// Uploaded question papers are prompt-only: no choices, reading passages,
+// page furniture or the exam-wide announcement enter the editable prompt box.
+export function questionPaperText(text) {
+  const byId = new Map();
+  for (const { id, prompt } of parseQuestionPaper(text)) {
+    if (Number(id.split('–').at(-1)) > 17) continue;
+    // Stop at the question's instruction even if OCR adds a score or table
+    // on the same line. Never let an answer-list item overwrite a real stem.
+    const stem = prompt.match(/^.*?(?:고\s*르\s*시\s*오|답\s*하\s*시\s*오|선택하시오)[.,，。]?/)?.[0] || prompt;
+    if (!/시오[.,，。]?$|[?？]$/.test(stem.replace(/\s/g, ''))) continue;
+    if (!byId.has(id)) byId.set(id, { id, prompt: cleanPrompt(stem) });
+  }
+  return [...byId.values()]
+    .sort((a, b) => Number(a.id.split('–')[0]) - Number(b.id.split('–')[0]) || b.id.length - a.id.length)
+    .map(({ id, prompt }) => `${id.includes('–') ? `[${id}]` : `${id}.`} ${prompt}`)
+    .join('\n');
+}
+
 export function questionPromptsFor(question) {
   const prompts = question.questionPrompts || [];
   return prompts.map(({ id, prompt }) => ({ id, prompt: spokenPrompt(prompt) })).filter(({ prompt }) => prompt);
+}
+
+export function spokenQuestion({ id, prompt }) {
+  const label = String(id).replace(/(\d+)\s*[–~\-]\s*(\d+)/, '$1번과 $2');
+  return `${label}번. ${prompt}`;
 }
 
 export function attachQuestionPaper(questions, paper) {

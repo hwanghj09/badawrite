@@ -3,10 +3,13 @@ import { parseScript, joinWav } from './script.js';
 import { createFileReader } from './read-files.js';
 import { outputNames } from './batch.js';
 import { estimateProgress } from './progress.js';
-import { parseQuestionPaper, attachQuestionPaper, questionPromptsFor } from './question-paper.js';
+import { parseQuestionPaper, attachQuestionPaper, questionPromptsFor, spokenQuestion, questionPaperText } from './question-paper.js';
+import { deviceProfile } from './tts-runtime.js';
 
 const $ = id => document.getElementById(id);
 const audio = $('audio');
+let profile = deviceProfile(navigator);
+if (profile.lowMemory) $('device-guidance').textContent = '이 기기에서는 메모리를 아껴 순서대로 만들어요. 처음 준비하는 동안 이 화면을 열어 두세요.';
 let sequence = 0;
 const newDocument = name => ({ key: ++sequence, name: name || `직접입력 ${sequence}`, text: '', paper: '', questions: [], answers: new Map(), state: '대본 입력 대기', started: false, output: null, previews: [] });
 let documents = [newDocument()];
@@ -56,8 +59,8 @@ function refreshControls() {
   }
   $('cancel').hidden = !busy;
   $('download-all').disabled = busy || !documents.some(d => d.output);
-  // The file list only matters once there is more than one script to switch between.
-  $('batch-panel').hidden = documents.length < 2;
+  // Keep a single failed file visible so its error can be inspected.
+  $('batch-panel').hidden = documents.length < 2 && !documents.some(d => /실패|취소/.test(d.state));
   renderDocuments(); renderQuestions(); renderProgress();
 }
 function discardOutput(doc) {
@@ -226,10 +229,11 @@ $('paper-input').onchange = async event => {
   try {
     const text = await reader.read(file, { raw: true }); signal.throwIfAborted();
     if (text.length > 50000) throw new Error('문제지 텍스트는 50,000자까지 지원해요. 듣기 문제 부분만 나눠 주세요.');
-    if (!parseQuestionPaper(text).length) throw new Error('번호가 있는 한국어 질문을 찾지 못했어요. 텍스트로 직접 입력해 주세요.');
-    doc.paper = text; doc.questions = parseDocument(doc); doc.answers.clear(); discardOutput(doc);
+    const prompts = questionPaperText(text);
+    if (!prompts) throw new Error('1~17번의 한국어 문제 문구를 찾지 못했어요. 문구만 직접 입력해 주세요.');
+    doc.paper = prompts; doc.questions = parseDocument(doc); doc.answers.clear(); discardOutput(doc);
     doc.state = doc.questions.length ? `${doc.questions.length}개 지문 · 문제지 연결, 다시 생성` : '영어 대본 입력 필요';
-    showStatus('문제지를 읽었어요. 연결된 질문과 번호가 맞는지 확인해 주세요.');
+    showStatus('문제 문구만 가져왔어요. 선지·표·전체 안내문은 제외했어요. 번호와 추출 문구를 확인해 주세요.');
   } catch (error) { showStatus(signal.aborted ? '문제지 가져오기를 취소했어요. 기존 연결은 유지됩니다.' : `문제지 읽기 실패: ${error.message}`, !signal.aborted); }
   finally {
     await reader.close(); operation = undefined; $('paper-input').value = '';
@@ -290,11 +294,38 @@ document.addEventListener('paste', e => {
   const files = [...(e.clipboardData?.files || [])]; if (files.length) { e.preventDefault(); importFiles(files); }
 });
 
-function generate(doc, settings, progress) {
+function prepareKorean(prompts, progress) {
+  // Reclaim the previous English engine before preparing the Korean engine.
+  worker?.terminate();
+  worker = new Worker(new URL('./korean.worker.js', import.meta.url), { type: 'module' });
+  const preparation = worker;
+  return new Promise((resolve, reject) => {
+    rejectGeneration = reject;
+    preparation.onerror = () => { preparation.terminate(); worker = undefined; reject(new Error('질문 음성 준비가 중단됐어요. 다른 탭을 닫고 다시 시도해 주세요.')); };
+    preparation.onmessage = ({ data }) => {
+      if (data.type === 'status') progress(data.message);
+      else if (data.type === 'done' || data.type === 'error') {
+        // End the entire WASM runtime before the next model is created.
+        preparation.terminate(); worker = undefined;
+        if (data.type === 'done') resolve(data.clips);
+        else reject(new Error(data.message));
+      }
+    };
+    preparation.postMessage({ prompts });
+  });
+}
+
+async function generate(doc, settings, progress) {
+  let koreanClips;
+  if (settings.profile.lowMemory) {
+    const prompts = [...new Set(doc.questions.flatMap(questionPromptsFor).map(spokenQuestion))];
+    if (prompts.length) koreanClips = await prepareKorean(prompts, progress);
+    operation?.signal.throwIfAborted();
+  }
   return new Promise((resolve, reject) => {
     rejectGeneration = reject;
     if (!worker) worker = new Worker(new URL('./tts.worker.js', import.meta.url), { type: 'module' });
-    worker.onerror = () => { worker?.terminate(); worker = undefined; reject(new Error('음성 엔진 실행 실패. 최신 Chrome 또는 Edge에서 다시 시도해 주세요.')); };
+    worker.onerror = () => { worker?.terminate(); worker = undefined; reject(new Error('음성 엔진이 중단됐어요. 다른 탭을 닫고 대본을 나눠 다시 시도해 주세요.')); };
     worker.onmessage = ({ data }) => {
       if (data.type === 'status') progress(data.message);
       else if (data.type === 'inference' && generationProgress && !generationProgress.started) generationProgress.started = performance.now();
@@ -311,20 +342,26 @@ function generate(doc, settings, progress) {
         renderProgress();
       }
       else if (data.type === 'question') receiveQuestion(doc, data);
-      else if (data.type === 'done') resolve(data);
+      else if (data.type === 'done') {
+        if (settings.profile.lowMemory) { worker.terminate(); worker = undefined; }
+        resolve(data);
+      }
       else if (data.type === 'error' && data.retryWithWasm && !settings.forceWasm) {
         // A failed ONNX session can poison the inference queue. Use a fresh
         // worker for CPU fallback, retaining already playable question previews.
         worker.terminate(); worker = undefined;
         progress('이 기기에서는 GPU 가속을 사용할 수 없어 CPU로 전환해요.');
-        generate(doc, { ...settings, forceWasm: true }, progress).then(resolve, reject);
+        profile = deviceProfile(navigator, { safe: true });
+        $('device-guidance').textContent = '이 기기에서는 메모리를 아껴 순서대로 만들어요. 처음 준비하는 동안 이 화면을 열어 두세요.';
+        settings.profile = profile; settings.forceWasm = true;
+        generate(doc, settings, progress).then(resolve, reject);
       }
       else if (data.type === 'error') {
         worker.terminate(); worker = undefined;
         reject(new Error(data.message));
       }
     };
-    worker.postMessage({ questions: doc.questions, ...settings, skipPreviews: doc.previews.flatMap((preview, index) => preview ? [index] : []) });
+    worker.postMessage({ questions: doc.questions, ...settings, koreanClips, skipPreviews: doc.previews.flatMap((preview, index) => preview ? [index] : []) }, (koreanClips || []).map(clip => clip.samples.buffer));
   });
 }
 $('generate').onclick = async () => {
@@ -337,7 +374,8 @@ $('generate').onclick = async () => {
   renderQuestions();
   listening = true; waiting = { doc: targets[0], index: 0 };
   operation = new AbortController(); const signal = operation.signal; refreshControls();
-  const settings = { turnGap: Number($('turn-gap').value), questionGap: Number($('question-gap').value), repeat: $('repeat').checked, examAudio: $('exam-audio').checked };
+  if (targets[0].previews[0]) listenAt(targets[0], 0);
+  const settings = { profile, turnGap: Number($('turn-gap').value), questionGap: Number($('question-gap').value), repeat: $('repeat').checked, examAudio: $('exam-audio').checked };
   let finished = 0; let failed = 0; let failureMessage;
   try {
     for (const [index, doc] of targets.entries()) {

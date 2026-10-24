@@ -48,7 +48,7 @@
 
       <details class="question-paper">
         <summary>문제지 연결 · 한국어 질문도 읽기</summary>
-        <p class="hint">현재 대본과 번호가 같은 질문을 영어 대화 앞에 읽고 WAV·ZIP에도 넣어요. 문제지는 대본별로 연결해 주세요.</p>
+        <p class="hint">듣기 1~17번의 문제 문구만 가져와 영어 대화 앞에 읽어요. 선지·표·전체 안내문은 제외하며, WAV·ZIP에도 질문을 넣어요. 추출한 문구는 꼭 확인해 주세요.</p>
         <label class="text-button paper-upload" for="paper-input">문제지 파일 선택 (PDF·사진·TXT)</label>
         <input id="paper-input" class="visually-hidden" type="file" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp,text/plain,.txt" />
         <label for="question-paper">한국어 문제 문구 · 추출 결과를 확인하고 고칠 수 있어요</label>
@@ -67,6 +67,7 @@
       <button id="generate" class="primary-button" disabled>듣기 만들기 →</button>
       <button id="cancel" class="text-button cancel" hidden>만들기 취소</button>
       <p class="hint">남녀 목소리는 자동으로 나눠요. 처음 한 번은 음성 모델을 받느라 몇 분 걸려요.</p>
+      <p id="device-guidance" class="hint">기기에 맞춰 음성 생성 방식을 자동으로 선택해요.</p>
       <details id="voice-settings" class="settings">
         <summary>간격·안내방송 설정</summary>
         <label class="setting-line" for="exam-audio">수능 원본 안내방송·차임벨

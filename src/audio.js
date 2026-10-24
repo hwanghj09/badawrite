@@ -1,5 +1,5 @@
 import { splitSpeech } from './script.js';
-import { questionPromptsFor } from './question-paper.js';
+import { questionPromptsFor, spokenQuestion } from './question-paper.js';
 
 export const SAMPLE_RATE = 24000;
 export const VOICES = { M: 'am_michael', W: 'af_heart' };
@@ -54,8 +54,7 @@ export async function synthesize(questions, settings, speak, progress = () => {}
     if (prompts.length && !speakKorean) throw new Error('한국어 질문 음성을 준비하지 못했습니다. 다시 생성해 주세요.');
     for (const { id, prompt } of prompts) {
       progress(`${id}번 · 한국어 질문 읽는 중`);
-      const label = String(id).replace(/(\d+)\s*[–~\-]\s*(\d+)/, '$1번과 $2');
-      const audio = await speakKorean(`${label}번. ${prompt}`);
+      const audio = await speakKorean(spokenQuestion({ id, prompt }));
       if (!(audio instanceof Float32Array) || !audio.length || audio.some(value => !Number.isFinite(value))) {
         const error = new Error('한국어 질문 음성이 비어 있거나 올바르지 않습니다. 다시 생성해 주세요.');
         error.korean = true;

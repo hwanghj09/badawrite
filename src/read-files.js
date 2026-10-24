@@ -1,6 +1,7 @@
 import { textFromPdfItems } from './pdf-text.js';
 import { readingRegions } from './ocr-layout.js';
 import { listeningFromOcr } from './ocr-script.js';
+import { deviceProfile } from './tts-runtime.js';
 
 export function fileKind(file) {
   if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) return 'pdf';
@@ -10,6 +11,7 @@ export function fileKind(file) {
 }
 
 export function createFileReader(signal, progress) {
+  const { maxOcrPixels } = deviceProfile(globalThis.navigator);
   let ocr;
   let pdf;
   const abort = () => {
@@ -17,22 +19,23 @@ export function createFileReader(signal, progress) {
     void pdf?.destroy().catch(() => {});
   };
   signal.addEventListener('abort', abort, { once: true });
-  async function recognize(image) {
+  async function recognize(image, paper = false) {
     signal.throwIfAborted();
     if (!ocr) {
       progress('글자 인식 모델 준비 중');
       const { createWorker } = await import('tesseract.js');
-      ocr = await createWorker('eng+kor', 1, {
+      ocr = await createWorker(paper ? 'kor+eng' : 'eng+kor', 1, {
         logger: p => { if (p.status === 'recognizing text') progress(`글자 인식 ${Math.round(p.progress * 100)}%`); },
       });
-      await ocr.setParameters({ tessedit_pageseg_mode: '6' });
+      // A question paper contains figures and tables, not a uniform text block.
+      await ocr.setParameters({ tessedit_pageseg_mode: paper ? '3' : '6' });
     }
     signal.throwIfAborted();
     const owned = !(image instanceof HTMLCanvasElement);
     const canvas = owned ? document.createElement('canvas') : image;
     if (owned) {
       const bitmap = await createImageBitmap(image);
-      const scale = Math.min(1, Math.sqrt(6000000 / (bitmap.width * bitmap.height)));
+      const scale = Math.min(1, Math.sqrt(maxOcrPixels / (bitmap.width * bitmap.height)));
       canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
       canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       bitmap.close();
@@ -55,7 +58,7 @@ export function createFileReader(signal, progress) {
       const kind = fileKind(file);
       if (kind === 'text') return (await file.text()).replace(/^\uFEFF/, '');
       if (kind === 'image') {
-        const text = await recognize(file);
+        const text = await recognize(file, raw);
         return raw ? text : listeningFromOcr(text);
       }
       const { getDocument, GlobalWorkerOptions, version } = await import('pdfjs-dist/build/pdf.mjs');
@@ -78,13 +81,14 @@ export function createFileReader(signal, progress) {
           if (text.replace(/\s/g, '').length < 30) {
             scanned = true;
             const initial = page.getViewport({ scale: 1 });
-            const scale = Math.min(3, Math.sqrt(6000000 / (initial.width * initial.height)));
+            const scale = Math.min(3, Math.sqrt(maxOcrPixels / (initial.width * initial.height)));
             const viewport = page.getViewport({ scale });
             const canvas = document.createElement('canvas');
             canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-            text = await recognize(canvas);
-            canvas.width = canvas.height = 0;
+            try {
+              await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+              text = await recognize(canvas, raw);
+            } finally { canvas.width = canvas.height = 0; }
           }
           pages.push(text); page.cleanup();
         }
