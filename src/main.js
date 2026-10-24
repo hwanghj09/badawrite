@@ -1,5 +1,7 @@
 import './theme.js';
-import { parseScript, joinWav } from './script.js';
+import { parseScript } from './script.js';
+import { finalizeRecording } from './final-recording.js';
+import { loadExamAudio } from './exam-audio.js';
 import { createFileReader } from './read-files.js';
 import { outputNames } from './batch.js';
 import { estimateProgress } from './progress.js';
@@ -10,6 +12,9 @@ import { SAMPLE_RATE } from './audio.js';
 
 const $ = id => document.getElementById(id);
 const audio = $('audio');
+// Start each new app session with the visible HTML defaults, including on
+// browsers that restore checkbox values from an older page version.
+for (const id of ['exam-audio', 'question-chime']) $(id).checked = $(id).defaultChecked;
 let profile = deviceProfile(navigator);
 if (profile.lowMemory) $('device-guidance').textContent = '이 기기에서는 메모리를 아껴 순서대로 만들어요. 처음 준비하는 동안 이 화면을 열어 두세요.';
 let sequence = 0;
@@ -167,6 +172,9 @@ function loadAudio() {
   document.querySelectorAll('.step')[2].classList.toggle('current', Boolean(track));
 }
 function updatePlayerCaption() {
+  const cues = active.output?.cues;
+  $('export-content').hidden = !cues;
+  $('export-content').textContent = cues ? `저장 WAV·ZIP: 시작 안내 ${cues.intro ? '포함' : '자동 삽입 끔'} · 문항 시작 차임벨 ${cues.chime ? '포함' : '자동 삽입 끔'}` : '';
   const ready = active.previews.filter(Boolean).length;
   const previewing = playback?.doc === active && playback.preview;
   $('track-title').textContent = previewing ? `${active.name} · ${active.questions[selected].id}번` : active.output ? active.name : '나만의 듣기 파일';
@@ -446,14 +454,22 @@ $('generate').onclick = async () => {
         const prompts = doc.questions.flatMap(questionPromptsFor);
         if (doc.paper.trim() && !prompts.length) throw new Error('문제지와 대본의 문항 번호가 맞지 않아요. 한국어 질문 연결을 확인해 주세요.');
         if (prompts.some(p => p.prompt.length > 1000) || prompts.reduce((sum, p) => sum + p.prompt.length, 0) > 8000) throw new Error('한국어 질문은 문항당 1,000자, 파일당 8,000자까지 지원해요. 잘못 추출된 문구를 정리해 주세요.');
-        const data = await generate(doc, settings, message => {
+        // Keep the small cue assets available in the UI until final export,
+        // even if the network disappears during a long generation.
+        if (settings.examAudio) await loadExamAudio({ signal });
+        signal.throwIfAborted();
+        await generate(doc, settings, message => {
           const ready = doc.previews.filter(Boolean).length;
           doc.state = `${ready ? `${ready}/${doc.questions.length}개 문항 듣기 가능 · ` : ''}${message}`;
           renderDocuments(); showStatus(`${index + 1}/${targets.length} · ${doc.name} · ${doc.state}`);
         });
         signal.throwIfAborted();
-        const blob = joinWav(doc.questions.map((_, i) => doc.previews[i].blob));
-        doc.output = { blob, url: URL.createObjectURL(blob), markers: data.markers };
+        doc.state = '저장 파일의 시작 안내·차임벨 확인 중';
+        renderDocuments();
+        const recording = await finalizeRecording(doc.questions.map((_, i) => doc.previews[i]?.blob), doc.questions, settings, signal);
+        signal.throwIfAborted();
+        doc.durations = recording.durations;
+        doc.output = { ...recording, url: URL.createObjectURL(recording.blob) };
         for (const preview of doc.previews) if (preview && preview.url !== playback?.url) URL.revokeObjectURL(preview.url);
         doc.previews = [];
         doc.state = `음성 완료 · ${doc.questions.length}개 지문`; finished++;

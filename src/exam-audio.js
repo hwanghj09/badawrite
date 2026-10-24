@@ -1,9 +1,9 @@
 import { SAMPLE_RATE } from './audio.js';
 
 let ready;
-export function loadExamAudio() {
+export function loadExamAudio({ signal } = {}) {
   if (!ready) ready = Promise.all(['intro', 'chime'].map(async name => {
-    const response = await fetch(`${import.meta.env?.BASE_URL || '/'}audio/csat-${name}.wav`);
+    const response = await fetch(`${import.meta.env?.BASE_URL || '/'}audio/csat-${name}.wav`, { signal });
     if (!response.ok) throw new Error('수능 안내방송·차임벨을 불러오지 못했어요. 다시 시도해 주세요.');
     const buffer = await response.arrayBuffer();
     const view = new DataView(buffer);

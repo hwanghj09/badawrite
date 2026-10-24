@@ -71,11 +71,11 @@
       <details id="voice-settings" class="settings">
         <summary>간격·안내방송 설정</summary>
         <label class="setting-line" for="exam-audio">수능 원본 안내방송·차임벨
-          <input id="exam-audio" class="switch" type="checkbox" role="switch" checked />
+          <input id="exam-audio" class="switch" type="checkbox" role="switch" autocomplete="off" checked />
         </label>
         <p class="hint">시작 안내방송을 붙이고, 대본의 차임벨 표시에 원본 소리를 넣어요. <a href="https://www.suneung.re.kr/boardCnts/list.do?boardID=1500234&amp;m=0403&amp;s=suneung" target="_blank" rel="noopener noreferrer">출처: 평가원 2026학년도 수능</a></p>
         <label class="setting-line" for="question-chime">문항 시작 차임벨
-          <input id="question-chime" class="switch" type="checkbox" role="switch" checked />
+          <input id="question-chime" class="switch" type="checkbox" role="switch" autocomplete="off" checked />
         </label>
         <label class="setting-line" for="turn-gap">화자 사이
           <select id="turn-gap"><option value="0.25">0.25초</option><option value="0.5" selected>0.5초</option><option value="1">1초</option></select>
@@ -129,6 +129,7 @@
         <button id="download" class="save-button" disabled aria-label="WAV 파일 저장"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg><span>저장</span></button>
       </div>
       <audio id="audio" preload="metadata"></audio>
+      <p id="export-content" class="hint" role="status" hidden></p>
       <div id="empty-practice" class="visually-hidden"></div>
       <div id="exercise" class="exercise" hidden>
         <div class="exercise-heading">
