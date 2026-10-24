@@ -47,7 +47,7 @@ test('audio uses the real W/M voices, synthesizes cues, and preserves timed sile
 test('global repeat and passage repeat do not multiply to four plays', async () => {
   const q = parseScript('[16~17]\nM: Hello.'); let calls = 0;
   const result = await synthesize(q, { repeat: true, turnGap: 0, questionGap: 0 }, async () => { calls++; return new Float32Array(SAMPLE_RATE); }, undefined, undefined, async () => new Float32Array([0.5]));
-  assert.equal(calls, 1); assert.equal(result.samples.length, Math.round(6.4 * SAMPLE_RATE) + 2);
+  assert.equal(calls, 1); assert.equal(result.samples.length, 8 * SAMPLE_RATE + 3);
 });
 test('PDF line and role boundaries survive split text runs', () => {
   const text = textFromPdfItems([

@@ -36,9 +36,9 @@ async def main():
     with wave.open(str(dest),'rb')as w:
      assert w.getframerate()==24000 and w.getnchannels()==1;raw=w.readframes(w.getnframes());pcm=list(struct.unpack('<'+'h'*(len(raw)//2),raw));duration=w.getnframes()/24000
     assert pcm[:len(intro)]==intro
-    positions=[len(intro)] + ([round(18.7*24000)]if i==0 else [])
+    positions=[len(intro)] + ([round(26.7*24000)]if i==0 else [])
     for pos in positions:assert pcm[pos:pos+len(bell)]==bell
-    assert abs(duration-(21.1 if i==0 else 13.7))<.00001,duration
+    assert abs(duration-(29.1 if i==0 else 13.7))<.00001,duration
     records.append({'file':dl.suggested_filename,'seconds':duration,'intro_verified':True,'chime_count':len(positions)})
    async with page.expect_download()as e:await page.locator('#download-all').click()
    dl=await e.value;dest=Path(tmp)/'all.zip';await dl.save_as(str(dest))

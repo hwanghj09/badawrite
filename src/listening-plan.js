@@ -1,4 +1,4 @@
-import { questionSpeechTexts, questionSpeechPlan, questionEndGap, isSharedListening } from './listening-sequence.js';
+import { questionSpeechTexts, questionSpeechPlan, questionEndGap, isSharedListening, LISTENING_TIMING } from './listening-sequence.js';
 
 export function speechWork(question, lowMemory = false) {
   return Math.max(1, question.turns.reduce((n, turn) => n + (turn.speaker ? turn.text.length : 0), 0)
@@ -21,11 +21,13 @@ export function estimateQuestionDuration(question, settings = {}, index = 0, las
   }
   const plan = questionSpeechPlan(question, settings);
   const repeat = settings.repeat || question.repeat === 2 || isSharedListening(question);
-  const before = plan.before.reduce((n, text) => n + text.length / 5.5 + 0.7, 0);
-  const between = repeat ? plan.between.reduce((n, text) => n + text.length / 5.5 + 0.7, 0) : 0;
+  const repeatGap = isSharedListening(question) ? LISTENING_TIMING.sharedRepeatGap : LISTENING_TIMING.repeatGap;
+  const before = plan.before.reduce((n, text) => n + text.length / 5.5 + LISTENING_TIMING.promptGap, 0);
+  const between = repeat ? plan.between.reduce((n, text) => n + text.length / 5.5 + LISTENING_TIMING.promptGap, 0) : 0;
   const after = plan.after.reduce((n, item, i) => n + item.text.length / 5.5 + (i < plan.after.length - 1 ? item.pause : 0), 0);
+  const afterCues = plan.after.length ? LISTENING_TIMING.sharedQuestionLeadGap + (settings.questionChime ? bell * plan.after.length : 0) : 0;
   return (index === 0 && settings.examAudio ? 11.3 : 0) + (settings.questionChime ? bell : 0)
-    + before + passage * (repeat ? 2 : 1) + (repeat ? 3 : 0) + between + after
+    + before + passage * (repeat ? 2 : 1) + (repeat ? repeatGap : 0) + between + after + afterCues
     + questionEndGap(question, settings, last);
 }
 

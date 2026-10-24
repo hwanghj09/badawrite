@@ -1,0 +1,16 @@
+{
+  "referenceVideo": "https://www.youtube.com/watch?v=vLn7NcSxnjQ",
+  "recording": "https://www.suneung.re.kr/boardCnts/fileDown.do?fileSeq=f669c9c11dbea2640c3e49b6caab63c3",
+  "method": "ffmpeg silencedetect, -35 dB, minimum 0.4 seconds; rounded practice gaps use the same 2026 exam recording, not downloaded YouTube audio",
+  "sharedFile": "16_문제 16~17.mp3",
+  "sharedGaps": {
+    "leadToCommon": [6.980590, 8.368844],
+    "commonToEnglish": [13.180181, 14.713923],
+    "englishToRepeatAnnouncement": [85.039932, 86.562086],
+    "repeatAnnouncementToEnglish": [87.974830, 89.516961],
+    "englishToQuestion16Chime": [159.842993, 160.860340],
+    "question16ToQuestion17Chime": [168.339546, 180.412018],
+    "question17ToClosingChime": [186.695669, 198.784671]
+  },
+  "ordinaryTrailingSilenceSeconds": [13.01, 13.01, 12.98, 10.99, 12.97, 13.99, 12.99, 13.01, 13.02, 11.00, 14.01, 13.98, 14.01, 13.99, 13.97]
+}

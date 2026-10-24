@@ -1,5 +1,14 @@
 import { questionPromptsFor, spokenQuestion } from './question-paper.js';
 
+// Rounded from the 2026 CSAT recording. Keep rendering and estimates together.
+export const LISTENING_TIMING = Object.freeze({
+  promptGap: 1.5,
+  sharedRepeatGap: 1.5,
+  repeatGap: 3,
+  sharedQuestionLeadGap: 1,
+  sharedQuestionGap: 12,
+});
+
 export function isSharedListening(question) {
   return /^16\s*[–~\-∼]\s*17$/.test(question.id);
 }
@@ -15,10 +24,10 @@ export function questionSpeechPlan(question, settings = {}) {
   const individual = ['16', '17'].map(id => byId.get(id)).filter(Boolean);
   const pauses = new Map((question.subquestions || []).map(q => [q.id, q.endPause]));
   const hasIndividualPauses = [...pauses.values()].some(seconds => seconds > 0);
-  const selected = Number(settings.sharedQuestionGap ?? 10);
-  const defaultPause = Number.isFinite(selected) ? Math.min(60, Math.max(0, selected)) : 10;
+  const selected = Number(settings.sharedQuestionGap ?? LISTENING_TIMING.sharedQuestionGap);
+  const defaultPause = Number.isFinite(selected) ? Math.min(60, Math.max(0, selected)) : LISTENING_TIMING.sharedQuestionGap;
   return {
-    before: [`십육번부터 십칠번까지는 두 번 들려줍니다. ${spokenQuestion(common)}`],
+    before: ['십육번부터 십칠번까지는 두 번 들려줍니다.', spokenQuestion(common)],
     between: ['다시 한 번 듣겠습니다.'],
     after: individual.map(prompt => ({
       text: spokenQuestion(prompt),

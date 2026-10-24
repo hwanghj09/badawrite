@@ -1,5 +1,5 @@
 import { splitSpeech } from './script.js';
-import { questionSpeechPlan, questionEndGap, isSharedListening } from './listening-sequence.js';
+import { questionSpeechPlan, questionEndGap, isSharedListening, LISTENING_TIMING } from './listening-sequence.js';
 
 export const SAMPLE_RATE = 24000;
 export const VOICES = { M: 'am_michael', W: 'af_heart' };
@@ -56,7 +56,7 @@ export async function synthesize(questions, settings, speak, progress = () => {}
     }
     const plan = questionSpeechPlan(q, settings);
     if ((plan.before.length || plan.between.length || plan.after.length) && !speakKorean) throw new Error('한국어 질문 음성을 준비하지 못했습니다. 다시 생성해 주세요.');
-    const appendKorean = async (text, pause = 0.7) => {
+    const appendKorean = async (text, pause = LISTENING_TIMING.promptGap) => {
       progress(`${q.id}번 · 한국어 질문·안내 읽는 중`);
       const audio = await speakKorean(text);
       if (!(audio instanceof Float32Array) || !audio.length || audio.some(value => !Number.isFinite(value))) {
@@ -89,13 +89,22 @@ export async function synthesize(questions, settings, speak, progress = () => {}
     for (const clip of turns) clips.push(clip);
     length += passageLength;
     if (settings.repeat || q.repeat === 2 || isSharedListening(q)) {
-      clips.push(3 * SAMPLE_RATE);
-      length += 3 * SAMPLE_RATE;
+      const repeatGap = isSharedListening(q) ? LISTENING_TIMING.sharedRepeatGap : LISTENING_TIMING.repeatGap;
+      clips.push(Math.round(repeatGap * SAMPLE_RATE));
+      length += Math.round(repeatGap * SAMPLE_RATE);
       for (const text of plan.between) await appendKorean(text);
       for (const clip of turns) clips.push(clip);
       length += passageLength;
     }
     for (const [i, item] of plan.after.entries()) {
+      if (i === 0) {
+        const pause = Math.round(LISTENING_TIMING.sharedQuestionLeadGap * SAMPLE_RATE);
+        clips.push(pause); length += pause;
+      }
+      if (settings.questionChime) {
+        const cue = settings.chime || chime();
+        clips.push(cue); length += cue.length;
+      }
       await appendKorean(item.text, 0);
       if (i < plan.after.length - 1) {
         const pause = Math.round(item.pause * SAMPLE_RATE);

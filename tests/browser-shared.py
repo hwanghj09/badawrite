@@ -33,8 +33,8 @@ async def main():
         await page.locator('.question-paper summary').click()
         await page.locator('#question-paper').fill('16. 여자가 하는 말의 주제로 가장 적절한 것은?\n17. 언급되지 않은 것은?')
         await page.locator('#voice-settings summary').click()
-        assert await page.locator('#shared-question-gap').input_value() == '10'
-        await page.locator('#shared-question-gap').select_option('5')
+        assert await page.locator('#shared-question-gap').input_value() == '12'
+        assert await page.locator('#question-gap').input_value() == '13'
         await page.locator('#repeat').check()
         await page.locator('#generate').click()
         assert await page.locator('#shared-question-gap').is_disabled()
@@ -42,9 +42,9 @@ async def main():
         assert await page.locator('#download').is_enabled(), await page.locator('#status-message').inner_text()
         qa = await page.evaluate('qa')
         assert qa['events'] == ['korean:start', 'korean:terminate', 'english:start', 'english:terminate'], qa['events']
-        assert len(qa['prompts']) == 4, qa['prompts']
+        assert len(qa['prompts']) == 5, qa['prompts']
         assert qa['prompts'][0].startswith('십육번부터 십칠번까지는 두 번 들려줍니다.')
-        assert qa['prompts'][1:] == ['다시 한 번 듣겠습니다.', '십육번. 여자가 하는 말의 주제로 가장 적절한 것은?', '십칠번. 언급되지 않은 것은?']
+        assert qa['prompts'][1:] == ['십육번과 십칠번. 다음을 듣고, 물음에 답하시오.', '다시 한 번 듣겠습니다.', '십육번. 여자가 하는 말의 주제로 가장 적절한 것은?', '십칠번. 언급되지 않은 것은?']
         with tempfile.TemporaryDirectory() as tmp:
             async with page.expect_download() as event:
                 await page.locator('#download').click()
@@ -61,14 +61,22 @@ async def main():
                 assert found >= 0 and found % 2 == 0, clip['text']
                 positions.append(found // 2 - clip['offset'])
             assert positions == sorted(positions)
-            common, bridge, q16, q17 = positions
-            english1 = common + qa['clips'][0]['length'] + round(.7 * 24000)
-            english1_end = bridge - 3 * 24000
-            english2 = bridge + qa['clips'][1]['length'] + round(.7 * 24000)
+            lead, common, bridge, q16, q17 = positions
+            assert common - lead - qa['clips'][0]['length'] == round(1.5 * 24000)
+            english1 = common + qa['clips'][1]['length'] + round(1.5 * 24000)
+            english1_end = bridge - round(1.5 * 24000)
+            english2 = bridge + qa['clips'][2]['length'] + round(1.5 * 24000)
+            bell_frames = round(2.2 * 24000)
+            english2_end = q16 - 24000 - bell_frames
             assert english1_end > english1
-            assert raw[english1*2:english1_end*2] == raw[english2*2:q16*2]
-            assert q17 - q16 - qa['clips'][2]['length'] == 5 * 24000
-            assert frames - q17 - qa['clips'][3]['length'] == 5 * 24000
+            assert raw[english1*2:english1_end*2] == raw[english2*2:english2_end*2]
+            bell = raw[round(11.3*24000)*2:lead*2]
+            assert len(bell) == bell_frames * 2
+            assert raw[(q16-bell_frames)*2:q16*2] == bell
+            assert raw[(q17-bell_frames)*2:q17*2] == bell
+            assert raw.count(bell) == 3
+            assert q17 - q16 - qa['clips'][3]['length'] - bell_frames == 12 * 24000
+            assert frames - q17 - qa['clips'][4]['length'] == 12 * 24000
             # The batch ZIP button appears once a second document is added;
             # an empty document is excluded from the archive.
             await page.locator('#new-document').click()
@@ -83,7 +91,7 @@ async def main():
         await page.locator('#shared-question-gap').select_option('15')
         assert await page.locator('#download').is_disabled()
         assert await page.locator('#generate').is_enabled()
-        print(json.dumps({'tts_prompts': qa['prompts'], 'worker_events': qa['events'], 'korean_positions_seconds': [n/24000 for n in positions], 'wav_seconds': frames/24000, 'english_repeated_exactly_twice': True, 'answer_pauses_seconds': [5, 5], 'zip_matches_wav': True, 'errors': errors}, ensure_ascii=False, indent=2))
+        print(json.dumps({'tts_prompts': qa['prompts'], 'worker_events': qa['events'], 'korean_positions_seconds': [n/24000 for n in positions], 'wav_seconds': frames/24000, 'english_repeated_exactly_twice': True, 'repeat_announcement_gaps_seconds': [1.5, 1.5], 'answer_pauses_seconds': [12, 12], 'original_chime_count': 3, 'zip_matches_wav': True, 'errors': errors}, ensure_ascii=False, indent=2))
         await browser.close()
 
 if __name__ == '__main__':
