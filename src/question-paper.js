@@ -1,12 +1,14 @@
+import { correctQuestionPrompt } from './question-corrections.js';
+
 const heading = /^(?:\[\s*)?(\d{1,2})(?:\s*번?\s*(?:[-~–∼]|과|및|&)\s*(\d{1,2}))?\s*(?:번(?!부터|까지)\s*[.．:：\])]?|[.,．)\]:：])\s*(.*)$/;
 const rangeHeading = /^(\d{1,2})\s*[-~–∼]\s*(\d{1,2})\s+(.+)$/;
 const choice = /[①②③④⑤]/;
 const metadata = /(?:^(?:\[?정답(?:\]|[:：①②③④⑤1-5]|및해설|$)|\[?(?:해설|출제의도|해석|어휘|번역))|학년도|학력평가|모의평가|모의고사.*문제지|수학능력시험|^제\d+교시|^영어영역|^\d+쪽|^페이지|^이문제지.*(?:무단|재배포)|^이제듣기|^방송을잘|^따라답을|^\d{1,2}번(?:부터|까지)|^(?:홀수형|짝수형)$)/;
 const isMetadata = text => metadata.test(text.replace(/\s+/g, ''));
-const cleanPrompt = text => String(text || '')
+const cleanPrompt = text => correctQuestionPrompt(String(text || '')
   .replace(/\[\s*\d*\s*점\s*\]|\(\s*\d+\s*점\s*\)/g, '')
   .replace(/\s+/g, ' ').trim()
-  .replace(/(고르시오|답하시오)\s*[,，]$/, '$1.');
+  .replace(/(고르시오|답하시오)\s*[,，]$/, '$1.'));
 const complete = text => /[?？.!。]$|(?:고르시오|답하시오|선택하시오)[,，]?$/.test(text.replace(/\s/g, ''));
 const noisyChoice = /^(?:[©®@⓵⓶⓷⓸⓹]|\(?[1-5]\)|[[(]?\s*[①②③④⑤])/;
 const spokenPrompt = text => {
@@ -44,7 +46,7 @@ export function parseQuestionPaper(text) {
     const prompt = cleanPrompt(choiceIndex < 0 ? line : line.slice(0, choiceIndex));
     if (noisyChoice.test(line) && choiceIndex < 0) { stopped = true; continue; }
     if (!current.options.length && !complete(current.prompt) && /[가-힣]/.test(prompt)) {
-      current.prompt += `${current.prompt ? ' ' : ''}${prompt}`;
+      current.prompt = cleanPrompt(`${current.prompt ? `${current.prompt} ` : ''}${prompt}`);
     }
     if (choiceIndex >= 0) {
       current.options.push(...line.slice(choiceIndex).split(/(?=[①②③④⑤])/).map(option => option.trim()).filter(Boolean));
@@ -80,7 +82,7 @@ export function questionPromptsFor(question) {
 
 export function spokenQuestion({ id, prompt }) {
   const label = String(id).replace(/(\d+)\s*[–~\-]\s*(\d+)/, '$1번과 $2');
-  return `${label}번. ${prompt}`;
+  return `${label}번. ${cleanPrompt(prompt)}`;
 }
 
 export function attachQuestionPaper(questions, paper) {
