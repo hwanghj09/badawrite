@@ -6,7 +6,7 @@ import { speakKorean } from './korean-tts.js';
 import { env } from '@huggingface/transformers';
 import { chooseRuntime, deviceProfile } from './tts-runtime.js';
 import { loadExamAudio } from './exam-audio.js';
-import { questionPromptsFor, spokenQuestion } from './question-paper.js';
+import { questionSpeechTexts } from './listening-sequence.js';
 
 let model;
 let runtime;
@@ -52,7 +52,7 @@ self.onmessage = async ({ data }) => {
     const prepared = new Map((data.koreanClips || []).map(clip => [clip.text, clip.samples]));
     data.koreanClips = undefined;
     const uses = new Map();
-    for (const text of data.questions.flatMap(questionPromptsFor).map(spokenQuestion)) uses.set(text, (uses.get(text) || 0) + 1);
+    for (const text of data.questions.flatMap(questionSpeechTexts)) uses.set(text, (uses.get(text) || 0) + 1);
     const korean = data.profile?.lowMemory ? async text => {
       const samples = prepared.get(text);
       if (!samples) throw new Error('한국어 질문 음성을 다시 준비해 주세요.');

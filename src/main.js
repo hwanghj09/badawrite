@@ -5,10 +5,11 @@ import { loadExamAudio } from './exam-audio.js';
 import { createFileReader } from './read-files.js';
 import { outputNames } from './batch.js';
 import { estimateProgress } from './progress.js';
-import { parseQuestionPaper, attachQuestionPaper, questionPromptsFor, spokenQuestion, questionPaperText } from './question-paper.js';
+import { parseQuestionPaper, attachQuestionPaper, questionPromptsFor, questionPaperText } from './question-paper.js';
 import { deviceProfile } from './tts-runtime.js';
 import { estimateQuestionDuration, planListening, speechWork } from './listening-plan.js';
 import { SAMPLE_RATE } from './audio.js';
+import { questionSpeechTexts, isSharedListening } from './listening-sequence.js';
 
 const $ = id => document.getElementById(id);
 const audio = $('audio');
@@ -30,7 +31,7 @@ let listening = false;
 let waiting;
 let automaticStart;
 let generationProgress;
-const questionWork = q => Math.max(1, q.turns.reduce((sum, t) => sum + (t.text?.length || 0), 0) + questionPromptsFor(q).reduce((sum, p) => sum + p.prompt.length, 0));
+const questionWork = q => speechWork(q);
 const parseDocument = doc => attachQuestionPaper(parseScript(doc.text), parseQuestionPaper(doc.paper));
 
 function renderProgress() {
@@ -51,7 +52,7 @@ function renderProgress() {
 }
 
 function readSettings() {
-  return { profile, turnGap: Number($('turn-gap').value), questionGap: Number($('question-gap').value), repeat: $('repeat').checked, examAudio: $('exam-audio').checked, questionChime: $('question-chime').checked };
+  return { profile, turnGap: Number($('turn-gap').value), questionGap: Number($('question-gap').value), sharedQuestionGap: Number($('shared-question-gap').value), repeat: $('repeat').checked, examAudio: $('exam-audio').checked, questionChime: $('question-chime').checked };
 }
 function approximateTime(seconds) {
   const value = Math.max(0, Math.ceil(seconds));
@@ -101,7 +102,7 @@ function showStatus(message, error = false) {
 }
 function refreshControls() {
   const busy = Boolean(operation);
-  for (const id of ['script', 'file-input', 'clear', 'new-document', 'turn-gap', 'question-gap', 'repeat', 'exam-audio', 'question-chime', 'paper-input', 'question-paper']) $(id).disabled = busy;
+  for (const id of ['script', 'file-input', 'clear', 'new-document', 'turn-gap', 'question-gap', 'shared-question-gap', 'repeat', 'exam-audio', 'question-chime', 'paper-input', 'question-paper']) $(id).disabled = busy;
   $('remove-paper').disabled = busy || !active.paper;
   const count = documents.filter(d => d.questions.length && !d.output).length;
   $('generate').disabled = busy || !count;
@@ -213,6 +214,7 @@ function renderEditor() {
   $('question-count').textContent = questions.length ? `${questions.length}개 지문` : '대본을 기다리고 있어요';
   $('empty-practice').hidden = Boolean(questions.length); $('exercise').hidden = !questions.length;
   const notices = [...new Set(questions.flatMap(q => q.warnings))];
+  if (questions.some(isSharedListening)) notices.unshift('16~17번은 안내 → 지문 → 다시 듣기 안내 → 지문 → 개별 질문·풀이 시간 순서로 재생해요. 질문은 문제지를 연결하거나 대본에 넣어 주세요.');
   if (questions.length && ($('question-chime').checked || questions.some(q => q.turns.some(t => t.type === 'chime')))) notices.unshift($('exam-audio').checked ? '문항 차임벨은 수능 원본 효과음을 사용합니다.' : '문항 차임벨은 합성 효과음으로 재현합니다.');
   if (questions.some(q => q.endPause)) notices.unshift('대본에 적힌 대기 시간을 적용합니다.');
   $('parse-notice').textContent = notices.join(' '); $('parse-notice').hidden = !notices.length;
@@ -303,7 +305,7 @@ $('new-document').onclick = () => {
   if (documents.length >= 20) return showStatus('파일은 최대 20개까지 관리할 수 있어요.', true);
   const doc = newDocument(); documents.push(doc); selectDocument(doc); refreshControls(); $('script').focus();
 };
-for (const id of ['turn-gap', 'question-gap', 'repeat', 'exam-audio', 'question-chime']) $(id).onchange = () => {
+for (const id of ['turn-gap', 'question-gap', 'shared-question-gap', 'repeat', 'exam-audio', 'question-chime']) $(id).onchange = () => {
   automaticStart = undefined; listening = false; waiting = undefined;
   for (const doc of documents) { discardOutput(doc); if (doc.questions.length) doc.state = `${doc.questions.length}개 지문 · 설정 변경, 다시 생성`; }
   loadAudio(); renderEditor(); refreshControls();
@@ -377,7 +379,7 @@ function prepareKorean(prompts, progress) {
 async function generate(doc, settings, progress) {
   let koreanClips;
   if (settings.profile.lowMemory) {
-    const prompts = [...new Set(doc.questions.flatMap(questionPromptsFor).map(spokenQuestion))];
+    const prompts = [...new Set(doc.questions.flatMap(questionSpeechTexts))];
     if (prompts.length) koreanClips = await prepareKorean(prompts, progress);
     operation?.signal.throwIfAborted();
   }
@@ -454,6 +456,8 @@ $('generate').onclick = async () => {
         const prompts = doc.questions.flatMap(questionPromptsFor);
         if (doc.paper.trim() && !prompts.length) throw new Error('문제지와 대본의 문항 번호가 맞지 않아요. 한국어 질문 연결을 확인해 주세요.');
         if (prompts.some(p => p.prompt.length > 1000) || prompts.reduce((sum, p) => sum + p.prompt.length, 0) > 8000) throw new Error('한국어 질문은 문항당 1,000자, 파일당 8,000자까지 지원해요. 잘못 추출된 문구를 정리해 주세요.');
+        const speech = doc.questions.flatMap(questionSpeechTexts);
+        if (speech.some(text => text.length > 1200) || speech.reduce((n, text) => n + text.length, 0) > 9000) throw new Error('한국어 질문·안내가 너무 길어요. 추출된 문구를 정리해 주세요.');
         // Keep the small cue assets available in the UI until final export,
         // even if the network disappears during a long generation.
         if (settings.examAudio) await loadExamAudio({ signal });

@@ -36,7 +36,8 @@ test('shared question range is spoken naturally and question markers include Kor
   const result = await synthesize([question('1'), question('16–17')], { ...settings, questionGap: 1 },
     async () => new Float32Array([0.25]), undefined, undefined,
     async text => { spoken.push(text); return new Float32Array([0.5]); });
-  assert.equal(spoken[1], '십육번과 십칠번. 다음 중 적절하지 않은 것을 고르시오.');
+  assert.equal(spoken[1], '십육번부터 십칠번까지는 두 번 들려줍니다. 십육번과 십칠번. 다음 중 적절하지 않은 것을 고르시오.');
+  assert.equal(spoken[2], '다시 한 번 듣겠습니다.');
   const secondStart = Math.round(result.markers[1].start * SAMPLE_RATE);
   assert.equal(result.samples[secondStart], 0.5);
   assert.equal(secondStart, Math.round(result.markers[0].end * SAMPLE_RATE) + SAMPLE_RATE);
@@ -55,7 +56,7 @@ test('stream-only Korean previews join to the same repeated two-question WAV as 
     async text => { spoken.push(text); return speakKorean(text); });
   assert.equal(streamed.samples, undefined);
   assert.deepEqual(streamed.markers, full.markers);
-  assert.deepEqual(spoken, ['일번. 다음 중 적절하지 않은 것을 고르시오.', '십육번과 십칠번. 다음 중 적절하지 않은 것을 고르시오.']);
+  assert.deepEqual(spoken, ['일번. 다음 중 적절하지 않은 것을 고르시오.', '십육번부터 십칠번까지는 두 번 들려줍니다. 십육번과 십칠번. 다음 중 적절하지 않은 것을 고르시오.', '다시 한 번 듣겠습니다.']);
   assert.equal(previews.length, 2);
   assert.deepEqual(new Uint8Array(await joinWav(previews).arrayBuffer()), new Uint8Array(encodeWav(full.samples)));
 });

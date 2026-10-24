@@ -10,7 +10,7 @@ export function parseScript(text) {
   let translation = false;
   let role = 'W';
   const answerSheet = /정\s*답\s*및\s*해\s*설/.test(text);
-  const lines = text.replace(/\r/g, '').replace(/([.!?\]])(?=(?:M|W)\s*[:：])/g, '$1\n').replace(/\s+(?=(?:M|W)\s*[:：])/g, '\n').split('\n');
+  const lines = text.replace(/[～〜]/g, '~').replace(/\r/g, '').replace(/([.!?\]])(?=(?:M|W)\s*[:：])/g, '$1\n').replace(/\s+(?=(?:M|W)\s*[:：])/g, '\n').split('\n');
   const names = new Map();
   const matchSpeaker = line => {
     const known = line.match(speaker);
@@ -107,7 +107,7 @@ export function parseScript(text) {
       const previous = result.at(-1);
       if (previous?.id.split('–').includes(q.id)) {
         previous.endPause += q.endPause;
-        if (q.prompt) (previous.subquestions ||= []).push({ id: q.id, prompt: q.prompt });
+        if (q.prompt || q.endPause) (previous.subquestions ||= []).push({ id: q.id, prompt: q.prompt, ...(q.endPause ? { endPause: q.endPause } : {}) });
       }
       continue;
     }

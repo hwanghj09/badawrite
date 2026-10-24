@@ -1,5 +1,5 @@
 import { splitSpeech } from './script.js';
-import { questionPromptsFor, spokenQuestion } from './question-paper.js';
+import { questionSpeechPlan, questionEndGap, isSharedListening } from './listening-sequence.js';
 
 export const SAMPLE_RATE = 24000;
 export const VOICES = { M: 'am_michael', W: 'af_heart' };
@@ -54,19 +54,20 @@ export async function synthesize(questions, settings, speak, progress = () => {}
       const cue = settings.chime || chime();
       clips.push(cue); length += cue.length;
     }
-    const prompts = questionPromptsFor(q);
-    if (prompts.length && !speakKorean) throw new Error('한국어 질문 음성을 준비하지 못했습니다. 다시 생성해 주세요.');
-    for (const { id, prompt } of prompts) {
-      progress(`${id}번 · 한국어 질문 읽는 중`);
-      const audio = await speakKorean(spokenQuestion({ id, prompt }));
+    const plan = questionSpeechPlan(q, settings);
+    if ((plan.before.length || plan.between.length || plan.after.length) && !speakKorean) throw new Error('한국어 질문 음성을 준비하지 못했습니다. 다시 생성해 주세요.');
+    const appendKorean = async (text, pause = 0.7) => {
+      progress(`${q.id}번 · 한국어 질문·안내 읽는 중`);
+      const audio = await speakKorean(text);
       if (!(audio instanceof Float32Array) || !audio.length || audio.some(value => !Number.isFinite(value))) {
         const error = new Error('한국어 질문 음성이 비어 있거나 올바르지 않습니다. 다시 생성해 주세요.');
         error.korean = true;
         throw error;
       }
-      clips.push(audio, Math.round(0.7 * SAMPLE_RATE));
-      length += audio.length + Math.round(0.7 * SAMPLE_RATE);
-    }
+      clips.push(audio, Math.round(pause * SAMPLE_RATE));
+      length += audio.length + Math.round(pause * SAMPLE_RATE);
+    };
+    for (const text of plan.before) await appendKorean(text);
     const turns = [];
     const sourceTurns = settings.questionChime && q.turns[0]?.type === 'chime' ? q.turns.slice(1) : q.turns;
     for (let i = 0; i < sourceTurns.length; i++) {
@@ -87,13 +88,22 @@ export async function synthesize(questions, settings, speak, progress = () => {}
     const passageLength = turns.reduce((sum, clip) => sum + (typeof clip === 'number' ? clip : clip.length), 0);
     for (const clip of turns) clips.push(clip);
     length += passageLength;
-    if (settings.repeat || q.repeat === 2) {
+    if (settings.repeat || q.repeat === 2 || isSharedListening(q)) {
       clips.push(3 * SAMPLE_RATE);
+      length += 3 * SAMPLE_RATE;
+      for (const text of plan.between) await appendKorean(text);
       for (const clip of turns) clips.push(clip);
-      length += 3 * SAMPLE_RATE + passageLength;
+      length += passageLength;
+    }
+    for (const [i, item] of plan.after.entries()) {
+      await appendKorean(item.text, 0);
+      if (i < plan.after.length - 1) {
+        const pause = Math.round(item.pause * SAMPLE_RATE);
+        clips.push(pause); length += pause;
+      }
     }
     markers.push({ id: q.id, start, end: length / SAMPLE_RATE });
-    const gap = q.endPause || (q !== questions.at(-1) ? settings.questionGap : 0);
+    const gap = questionEndGap(q, settings, index === questions.length - 1);
     const silence = Math.round(gap * SAMPLE_RATE);
     clips.push(silence); length += silence;
     if (onQuestion) {

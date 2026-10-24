@@ -51,7 +51,8 @@ test('duration estimates include the intro, one question cue, pauses, gaps and r
   const estimated = estimateQuestionDuration(q, base);
   assert.ok(estimated > 11.3 + 2.2 + 3 + 5);
   assert.equal(estimateQuestionDuration(q, { ...base, repeat: true }), estimated);
-  assert.equal(estimated - estimateQuestionDuration(q, base, 0, true), 5);
-  assert.equal(estimated - estimateQuestionDuration(q, base, 1), 11.3);
+  assert.equal(estimated - estimateQuestionDuration(q, base, 0, true), 0); // Shared question has its own final answer pause.
+  assert.equal(estimated - estimateQuestionDuration(q, { ...base, sharedQuestionGap: 5 }), 5);
+  assert.ok(Math.abs(estimated - estimateQuestionDuration(q, base, 1) - 11.3) < 0.00001);
   assert.ok(speechWork(q, true) < speechWork(q, false));
 });

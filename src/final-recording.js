@@ -1,6 +1,7 @@
 import { encodeWav, joinWav, joinWavPcm } from './script.js';
 import { chime, SAMPLE_RATE } from './audio.js';
 import { loadExamAudio } from './exam-audio.js';
+import { questionEndGap } from './listening-sequence.js';
 
 const bytesPerSecond = SAMPLE_RATE * 2;
 const pcm = samples => new Blob([encodeWav(samples)]).slice(44);
@@ -46,7 +47,7 @@ export async function finalizeRecording(previews, questions, settings = {}, sign
       repaired++;
     }
     const duration = (complete.size - 44) / bytesPerSecond;
-    const gap = questions[index].endPause || (index < questions.length - 1 ? settings.questionGap || 0 : 0);
+    const gap = questionEndGap(questions[index], settings, index === questions.length - 1);
     markers.push({ id: questions[index].id, start: cursor, end: cursor + Math.max(0, duration - gap) });
     cursor += duration; durations.push(duration); parts.push(complete);
   }

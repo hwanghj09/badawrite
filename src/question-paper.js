@@ -21,7 +21,7 @@ export function parseQuestionPaper(text) {
   let current;
   let stopped = false;
   for (const raw of String(text || '').replace(/[０-９]/g, digit => String(digit.charCodeAt(0) - 0xff10)).split(/\r?\n/)) {
-    let line = raw.replace(/\s+/g, ' ').trim();
+    let line = raw.replace(/[～〜]/g, '~').replace(/\s+/g, ' ').trim();
     if (!line) continue;
     // OCR can turn "1." into "L" or insert a dot before "10.". Only
     // recover the number when a recognisable question follows it.
@@ -108,10 +108,12 @@ export function attachQuestionPaper(questions, paper) {
       const subquestions = [];
       for (let id = Number(range[1]); id <= Number(range[2]); id++) {
         const subquestion = byId.get(String(id));
-        if (subquestion) subquestions.push({ ...subquestion, options: [...subquestion.options] });
+        const timing = question.subquestions?.find(q => q.id === String(id));
+        if (subquestion) subquestions.push({ ...subquestion, ...(timing?.endPause ? { endPause: timing.endPause } : {}), options: [...subquestion.options] });
       }
       if (matched) copy.prompt = matched.prompt;
-      if (subquestions.length) copy.subquestions = subquestions;
+      if (subquestions.length) copy.subquestions = [...new Map([...(question.subquestions || []), ...subquestions].map(q => [q.id, q])).values()]
+        .sort((a, b) => Number(a.id) - Number(b.id));
       if (matched || subquestions.length) {
         copy.questionPrompts = questionPromptsFor({ questionPrompts: [{ id: copy.id, prompt: copy.prompt }, ...(copy.subquestions || [])] });
       }

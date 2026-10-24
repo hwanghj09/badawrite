@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { parseQuestionPaper, questionPaperText, attachQuestionPaper, questionPromptsFor, spokenQuestion } from '../src/question-paper.js';
+import { parseQuestionPaper, questionPaperText, attachQuestionPaper } from '../src/question-paper.js';
+import { questionSpeechTexts } from '../src/listening-sequence.js';
 import { parseScript } from '../src/script.js';
 import { synthesize } from '../src/audio.js';
 
@@ -35,9 +36,10 @@ test('verified source prompts are read once, common instruction once, intro once
   const result = await synthesize(questions, { turnGap: 0, questionGap: 0, intro: new Float32Array([0.75]) },
     async text => { english.push(text); return new Float32Array([0.25]); }, undefined, undefined,
     async text => { korean.push(text); return new Float32Array([0.5]); });
-  assert.deepEqual(korean, questions.flatMap(questionPromptsFor).map(spokenQuestion));
-  assert.equal(korean.length, 18);
-  assert.equal(korean.filter(text => text.startsWith('십육번과 십칠번.')).length, 1);
+  assert.deepEqual(korean, questions.flatMap(questionSpeechTexts));
+  assert.equal(korean.length, 19);
+  assert.equal(korean.filter(text => text.startsWith('십육번부터 십칠번까지는 두 번')).length, 1);
+  assert.equal(korean.filter(text => text === '다시 한 번 듣겠습니다.').length, 1);
   assert.equal(korean.at(-1), '십칠번. 언급된 동물이 아닌 것은?');
   assert.equal(english.length, 16);
   assert.equal([...result.samples].filter(sample => sample === 0.75).length, 1);

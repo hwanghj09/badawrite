@@ -24,8 +24,8 @@ test('shared-passage questions stay separate from the title and exclude the clos
     const [q, next] = parseScript(`16번과 17번\n다음을 듣고, 물음에 답하시오.\nW: Welcome, students.\n16번\n여자가 하는 말의 주제로 가장 적절한 것은?\n(10 seconds)\n17번\n언급된 구조물이 아닌 것은?${separator}이제 듣기 문제가 끝났습니다. 18번부터는 문제지의 지시에 따라 답을 하시기 바랍니다.\n(10 seconds)\n18번 다음 글을 읽고 답하시오.\nM: Next passage.`);
     assert.equal(q.prompt, '다음을 듣고, 물음에 답하시오.');
     assert.deepEqual(q.subquestions, [
-      { id: '16', prompt: '여자가 하는 말의 주제로 가장 적절한 것은?' },
-      { id: '17', prompt: '언급된 구조물이 아닌 것은?' },
+      { id: '16', prompt: '여자가 하는 말의 주제로 가장 적절한 것은?', endPause: 10 },
+      { id: '17', prompt: '언급된 구조물이 아닌 것은?', endPause: 10 },
     ]);
     assert.equal(q.repeat, 2);
     assert.equal(q.endPause, 20);
