@@ -76,6 +76,6 @@ test('the corrected prompt reaches Korean speech while English dialogue and ques
   const korean = [], english = [];
   await synthesize([q], { turnGap: 0, questionGap: 0 }, async text => { english.push(text); return new Float32Array([0.25]); },
     undefined, undefined, async text => { korean.push(text); return new Float32Array([0.5]); });
-  assert.deepEqual(korean, ['1번. 가장 적절한 것을 고르시오.']);
+  assert.deepEqual(korean, ['일번. 가장 적절한 것을 고르시오.']);
   assert.deepEqual(english, ['This is the original English dialogue.']);
 });

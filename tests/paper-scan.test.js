@@ -37,8 +37,8 @@ test('verified source prompts are read once, common instruction once, intro once
     async text => { korean.push(text); return new Float32Array([0.5]); });
   assert.deepEqual(korean, questions.flatMap(questionPromptsFor).map(spokenQuestion));
   assert.equal(korean.length, 18);
-  assert.equal(korean.filter(text => text.startsWith('16번과 17번.')).length, 1);
-  assert.equal(korean.at(-1), '17번. 언급된 동물이 아닌 것은?');
+  assert.equal(korean.filter(text => text.startsWith('십육번과 십칠번.')).length, 1);
+  assert.equal(korean.at(-1), '십칠번. 언급된 동물이 아닌 것은?');
   assert.equal(english.length, 16);
   assert.equal([...result.samples].filter(sample => sample === 0.75).length, 1);
   assert.equal([...result.samples].filter(sample => sample === 0.25).length, 17);

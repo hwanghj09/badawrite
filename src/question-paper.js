@@ -80,8 +80,21 @@ export function questionPromptsFor(question) {
   return prompts.map(({ id, prompt }) => ({ id, prompt: spokenPrompt(prompt) })).filter(({ prompt }) => prompt);
 }
 
+function questionNumberReading(digits) {
+  const number = Number(digits);
+  if (!Number.isInteger(number) || number < 1 || number > 9999) return digits;
+  const names = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+  const units = ['', '십', '백', '천'];
+  return [...String(number)].reverse().map((digit, place) => {
+    if (digit === '0') return '';
+    return `${digit === '1' && place > 0 ? '' : names[Number(digit)]}${units[place]}`;
+  }).reverse().join('');
+}
+
 export function spokenQuestion({ id, prompt }) {
-  const label = String(id).replace(/(\d+)\s*[–~\-]\s*(\d+)/, '$1번과 $2');
+  // Spell question ordinals explicitly: a TTS engine may read "10번" as
+  // the frequency "열 번". Keep numeric IDs in the editor and markers.
+  const label = String(id).replace(/(\d+)\s*[–~\-∼]\s*(\d+)/, '$1번과 $2').replace(/\d+/g, questionNumberReading);
   return `${label}번. ${cleanPrompt(prompt)}`;
 }
 

@@ -1,7 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseScript } from '../src/script.js';
-import { parseQuestionPaper, attachQuestionPaper, questionPromptsFor } from '../src/question-paper.js';
+import { parseQuestionPaper, attachQuestionPaper, questionPromptsFor, spokenQuestion } from '../src/question-paper.js';
+
+test('question numbers are spelled as Sino-Korean ordinals before speech, without changing the prompt body', () => {
+  const readings = ['일', '이', '삼', '사', '오', '육', '칠', '팔', '구', '십',
+    '십일', '십이', '십삼', '십사', '십오', '십육', '십칠', '십팔', '십구', '이십',
+    '이십일', '이십이', '이십삼', '이십사', '이십오', '이십육', '이십칠', '이십팔', '이십구', '삼십',
+    '삼십일', '삼십이', '삼십삼', '삼십사', '삼십오', '삼십육', '삼십칠', '삼십팔', '삼십구', '사십',
+    '사십일', '사십이', '사십삼', '사십사', '사십오'];
+  for (const [index, reading] of readings.entries()) {
+    assert.equal(spokenQuestion({ id: String(index + 1), prompt: '10개 중 3개, 50달러가 아닌 것은?' }), `${reading}번. 10개 중 3개, 50달러가 아닌 것은?`);
+  }
+  assert.equal(spokenQuestion({ id: '01', prompt: '질문입니다.' }), '일번. 질문입니다.');
+  assert.equal(spokenQuestion({ id: '100', prompt: '질문입니다.' }), '백번. 질문입니다.');
+});
+
+test('shared question ranges use explicit Sino-Korean readings while stored and displayed IDs stay numeric', () => {
+  for (const id of ['16–17', '16~17', '16-17', '16∼17']) {
+    assert.equal(spokenQuestion({ id, prompt: '다음을 듣고 답하시오.' }), '십육번과 십칠번. 다음을 듣고 답하시오.');
+  }
+  const [q] = attachQuestionPaper(parseScript('10. W: Hello.'), parseQuestionPaper('10. 알맞은 답을 고르시오.'));
+  assert.equal(q.id, '10');
+  assert.equal(q.questionPrompts[0].id, '10');
+  assert.equal(spokenQuestion(q.questionPrompts[0]), '십번. 알맞은 답을 고르시오.');
+});
 
 test('extracts wrapped numbered Korean questions and choices without scores or answers', () => {
   const paper = parseQuestionPaper('2026학년도 영어 영역\n1. 다음을 듣고, 남자가 하는 말의\n목적으로 가장 적절한 것을 고르시오. [3점]\n① 사과하려고 ② 초대하려고\n③ 감사하려고\n정답: ②\n해설은 읽지 않습니다.\n２번 다음 중 적절하지 않은 것은?\n① A\n② B\n1 8');

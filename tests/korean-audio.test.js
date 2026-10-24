@@ -17,7 +17,7 @@ test('Korean question is included once before repeated English in track, preview
     async text => { english.push(text); return new Float32Array([0.25]); }, undefined,
     part => previews.push(part),
     async text => { korean.push(text); return new Float32Array([0.5, -0.5]); });
-  assert.deepEqual(korean, ['1번. 다음 중 적절하지 않은 것을 고르시오.']);
+  assert.deepEqual(korean, ['일번. 다음 중 적절하지 않은 것을 고르시오.']);
   assert.deepEqual(english, ['Hello.']);
   assert.deepEqual(previews[0].samples, result.samples);
   assert.equal(result.markers[0].start, 0);
@@ -36,7 +36,7 @@ test('shared question range is spoken naturally and question markers include Kor
   const result = await synthesize([question('1'), question('16–17')], { ...settings, questionGap: 1 },
     async () => new Float32Array([0.25]), undefined, undefined,
     async text => { spoken.push(text); return new Float32Array([0.5]); });
-  assert.equal(spoken[1], '16번과 17번. 다음 중 적절하지 않은 것을 고르시오.');
+  assert.equal(spoken[1], '십육번과 십칠번. 다음 중 적절하지 않은 것을 고르시오.');
   const secondStart = Math.round(result.markers[1].start * SAMPLE_RATE);
   assert.equal(result.samples[secondStart], 0.5);
   assert.equal(secondStart, Math.round(result.markers[0].end * SAMPLE_RATE) + SAMPLE_RATE);
@@ -55,7 +55,7 @@ test('stream-only Korean previews join to the same repeated two-question WAV as 
     async text => { spoken.push(text); return speakKorean(text); });
   assert.equal(streamed.samples, undefined);
   assert.deepEqual(streamed.markers, full.markers);
-  assert.deepEqual(spoken, ['1번. 다음 중 적절하지 않은 것을 고르시오.', '16번과 17번. 다음 중 적절하지 않은 것을 고르시오.']);
+  assert.deepEqual(spoken, ['일번. 다음 중 적절하지 않은 것을 고르시오.', '십육번과 십칠번. 다음 중 적절하지 않은 것을 고르시오.']);
   assert.equal(previews.length, 2);
   assert.deepEqual(new Uint8Array(await joinWav(previews).arrayBuffer()), new Uint8Array(encodeWav(full.samples)));
 });
