@@ -230,11 +230,12 @@ select option { background: var(--card); color: var(--ink); }
 .play-button:disabled { opacity: .35; }
 .player-track { flex: 1; min-width: 0; }
 .track-top, .track-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.track-bottom { flex-wrap: wrap; }
 .track-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .track-top strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
 #time { flex-shrink: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.track-bottom > span { font-size: 13px; color: var(--ink-3); }
-.track-bottom select { min-height: 32px; font-size: 13px; }
+.track-bottom > span { flex: 1 1 160px; font-size: 13px; color: var(--ink-3); }
+.track-bottom select { flex-shrink: 0; min-height: 32px; font-size: 13px; }
 .player input[type="range"] { display: block; width: 100%; margin: 10px 0 6px; accent-color: var(--accent); }
 .eq { flex-shrink: 0; display: flex; align-items: flex-end; gap: 2px; height: 12px; }
 .eq i { width: 3px; height: 4px; border-radius: 1px; background: var(--accent); opacity: .4; transform-origin: bottom; }
