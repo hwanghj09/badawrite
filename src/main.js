@@ -5,6 +5,8 @@ import { outputNames } from './batch.js';
 import { estimateProgress } from './progress.js';
 import { parseQuestionPaper, attachQuestionPaper, questionPromptsFor, spokenQuestion, questionPaperText } from './question-paper.js';
 import { deviceProfile } from './tts-runtime.js';
+import { estimateQuestionDuration, planListening, speechWork } from './listening-plan.js';
+import { SAMPLE_RATE } from './audio.js';
 
 const $ = id => document.getElementById(id);
 const audio = $('audio');
@@ -21,11 +23,13 @@ let operation;
 let playback;
 let listening = false;
 let waiting;
+let automaticStart;
 let generationProgress;
 const questionWork = q => Math.max(1, q.turns.reduce((sum, t) => sum + (t.text?.length || 0), 0) + questionPromptsFor(q).reduce((sum, p) => sum + p.prompt.length, 0));
 const parseDocument = doc => attachQuestionPaper(parseScript(doc.text), parseQuestionPaper(doc.paper));
 
 function renderProgress() {
+  renderListeningPlan();
   const bar = $('operation-progress');
   bar.hidden = !operation;
   if (!operation) { $('remaining-time').textContent = ''; return; }
@@ -41,6 +45,49 @@ function renderProgress() {
   $('remaining-time').textContent = `${percent}% · ${seconds === null ? '예상 남은 시간 계산 중' : seconds ? `약 ${seconds < 60 ? `${seconds}초` : `${Math.ceil(seconds / 60)}분`} 남음` : '마무리 중'} · 기기에 따라 달라질 수 있어요`;
 }
 
+function readSettings() {
+  return { profile, turnGap: Number($('turn-gap').value), questionGap: Number($('question-gap').value), repeat: $('repeat').checked, examAudio: $('exam-audio').checked, questionChime: $('question-chime').checked };
+}
+function approximateTime(seconds) {
+  const value = Math.max(0, Math.ceil(seconds));
+  return value < 60 ? `${value}초` : `${Math.floor(value / 60)}분${value % 60 ? ` ${value % 60}초` : ''}`;
+}
+function listeningPlan(doc) {
+  const settings = doc.generationSettings || readSettings();
+  return planListening({
+    items: doc.questions.map((q, i) => ({
+      ready: Boolean(doc.output || doc.previews[i]),
+      work: speechWork(q, settings.profile.lowMemory),
+      duration: doc.durations?.[i] ?? estimateQuestionDuration(q, settings, i, i === doc.questions.length - 1),
+    })),
+    samples: doc.measurements,
+    elapsed: doc.measuredAt ? (performance.now() - doc.measuredAt) / 1000 : 0,
+    playbackRate: Number($('speed').value),
+  });
+}
+function renderListeningPlan() {
+  if (automaticStart) {
+    const doc = automaticStart.doc;
+    if (doc.generationState === 'failed') automaticStart = undefined;
+    else if (listeningPlan(doc).canStart) {
+      automaticStart = undefined;
+      listenAt(doc, 0);
+    }
+  }
+  const plan = listeningPlan(active);
+  $('listening-estimate').textContent = active.questions.length ? `${active.output ? '전체 듣기' : '예상 전체 듣기'} 약 ${approximateTime(plan.totalSeconds)} · ${$('speed').value}배속` : '';
+  const pending = automaticStart?.doc === active;
+  $('listening-buffer').textContent = pending
+    ? plan.waitSeconds === null || !plan.waitSeconds ? '이어 듣기 준비 중 · 문항 생성 속도를 측정하고 있어요.'
+      : `이어 듣기 자동 시작까지 약 ${approximateTime(plan.waitSeconds)} · 충분히 준비되면 재생해요.`
+    : active.generationState === 'failed' ? '생성이 중단됐어요. 완성된 문항은 번호를 눌러 들을 수 있어요.'
+      : !audio.paused && playback?.doc === active ? active.output ? '이어 듣기 재생 중이에요.' : '이어 듣는 동안 나머지 문항을 계속 만들어요.'
+        : '준비된 문항부터 바로 듣거나 자동 시작을 선택할 수 있어요.';
+  $('start-listening').disabled = !(active.output || active.previews[0]);
+  $('auto-listening').hidden = !operation || !active.questions.length;
+  $('auto-listening').textContent = pending ? '자동 시작 취소' : '준비되면 자동 시작';
+}
+
 function showStatus(message, error = false) {
   $('status').hidden = false;
   $('status').classList.toggle('error', error);
@@ -49,7 +96,7 @@ function showStatus(message, error = false) {
 }
 function refreshControls() {
   const busy = Boolean(operation);
-  for (const id of ['script', 'file-input', 'clear', 'new-document', 'turn-gap', 'question-gap', 'repeat', 'exam-audio', 'paper-input', 'question-paper']) $(id).disabled = busy;
+  for (const id of ['script', 'file-input', 'clear', 'new-document', 'turn-gap', 'question-gap', 'repeat', 'exam-audio', 'question-chime', 'paper-input', 'question-paper']) $(id).disabled = busy;
   $('remove-paper').disabled = busy || !active.paper;
   const count = documents.filter(d => d.questions.length && !d.output).length;
   $('generate').disabled = busy || !count;
@@ -69,6 +116,7 @@ function discardOutput(doc) {
   doc.output = null;
   doc.previews = [];
   doc.started = false;
+  doc.durations = []; doc.measurements = []; doc.generationSettings = undefined; doc.generationState = undefined;
 }
 function renderDocuments() {
   $('batch-count').textContent = `${documents.length}개 파일 · ${documents.filter(d => d.output).length}개 완료`;
@@ -78,7 +126,7 @@ function renderDocuments() {
     button.setAttribute('aria-pressed', String(doc === active));
     const name = document.createElement('strong'); name.textContent = doc.name;
     const info = document.createElement('small'); info.textContent = doc.state;
-    button.append(name, info); button.onclick = () => { listening = false; waiting = undefined; selectDocument(doc); };
+    button.append(name, info); button.onclick = () => { automaticStart = undefined; listening = false; waiting = undefined; selectDocument(doc); };
     const save = document.createElement('button'); save.className = 'text-button'; save.textContent = 'WAV';
     save.disabled = !doc.output; save.setAttribute('aria-label', `${doc.name} WAV 저장`);
     save.onclick = () => download(doc.output.url, outputNames(documents)[documents.indexOf(doc)]);
@@ -129,6 +177,7 @@ function receiveQuestion(doc, data) {
   if (doc.previews[data.index]) URL.revokeObjectURL(doc.previews[data.index].url);
   const blob = new Blob([data.wav], { type: 'audio/wav' });
   doc.previews[data.index] = { blob, url: URL.createObjectURL(blob) };
+  (doc.durations ||= [])[data.index] = (blob.size - 44) / (SAMPLE_RATE * 2);
   doc.state = `${doc.previews.filter(Boolean).length}/${doc.questions.length}개 문항 듣기 가능`;
   const firstReady = data.index === 0 && listening && waiting?.doc === doc && waiting.index === 0;
   if (listening && waiting?.doc === doc && waiting.index === data.index) listenAt(doc, data.index);
@@ -137,6 +186,7 @@ function receiveQuestion(doc, data) {
     updatePlayerCaption(); renderQuestions();
   }
   renderDocuments();
+  renderListeningPlan();
   if (firstReady) $('question-progress').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 function selectDocument(doc, index = 0) {
@@ -155,11 +205,12 @@ function renderEditor() {
   $('question-count').textContent = questions.length ? `${questions.length}개 지문` : '대본을 기다리고 있어요';
   $('empty-practice').hidden = Boolean(questions.length); $('exercise').hidden = !questions.length;
   const notices = [...new Set(questions.flatMap(q => q.warnings))];
-  if (questions.some(q => q.turns.some(t => t.type === 'chime'))) notices.unshift($('exam-audio').checked ? '차임벨은 수능 원본 효과음을 사용합니다.' : '차임벨은 합성 효과음으로 재현합니다.');
+  if (questions.length && ($('question-chime').checked || questions.some(q => q.turns.some(t => t.type === 'chime')))) notices.unshift($('exam-audio').checked ? '문항 차임벨은 수능 원본 효과음을 사용합니다.' : '문항 차임벨은 합성 효과음으로 재현합니다.');
   if (questions.some(q => q.endPause)) notices.unshift('대본에 적힌 대기 시간을 적용합니다.');
   $('parse-notice').textContent = notices.join(' '); $('parse-notice').hidden = !notices.length;
   document.querySelectorAll('.step')[1].classList.toggle('current', Boolean(questions.length));
   renderQuestions(); if (questions.length) renderExercise();
+  renderListeningPlan();
 }
 function renderQuestions() {
   const readyCount = active.output ? active.questions.length : active.previews.filter(Boolean).length;
@@ -207,7 +258,7 @@ function renderExercise() {
 }
 $('show-script').onchange = renderExercise;
 $('script').oninput = () => {
-  listening = false; waiting = undefined;
+  automaticStart = undefined; listening = false; waiting = undefined;
   active.text = $('script').value; active.questions = parseDocument(active); active.answers.clear();
   discardOutput(active); active.state = active.questions.length ? `${active.questions.length}개 지문 · 생성 대기` : '영어 대본 입력 필요';
   selected = 0; renderEditor(); loadAudio(); refreshControls();
@@ -244,8 +295,8 @@ $('new-document').onclick = () => {
   if (documents.length >= 20) return showStatus('파일은 최대 20개까지 관리할 수 있어요.', true);
   const doc = newDocument(); documents.push(doc); selectDocument(doc); refreshControls(); $('script').focus();
 };
-for (const id of ['turn-gap', 'question-gap', 'repeat', 'exam-audio']) $(id).onchange = () => {
-  listening = false; waiting = undefined;
+for (const id of ['turn-gap', 'question-gap', 'repeat', 'exam-audio', 'question-chime']) $(id).onchange = () => {
+  automaticStart = undefined; listening = false; waiting = undefined;
   for (const doc of documents) { discardOutput(doc); if (doc.questions.length) doc.state = `${doc.questions.length}개 지문 · 설정 변경, 다시 생성`; }
   loadAudio(); renderEditor(); refreshControls();
 };
@@ -328,8 +379,14 @@ async function generate(doc, settings, progress) {
     worker.onerror = () => { worker?.terminate(); worker = undefined; reject(new Error('음성 엔진이 중단됐어요. 다른 탭을 닫고 대본을 나눠 다시 시도해 주세요.')); };
     worker.onmessage = ({ data }) => {
       if (data.type === 'status') progress(data.message);
-      else if (data.type === 'inference' && generationProgress && !generationProgress.started) generationProgress.started = performance.now();
+      else if (data.type === 'inference') {
+        doc.measurements = []; doc.measuredAt = performance.now();
+        if (generationProgress && !generationProgress.started) generationProgress.started = performance.now();
+      }
       else if (data.type === 'progress' && generationProgress) {
+        const now = performance.now();
+        (doc.measurements ||= []).push({ work: speechWork(doc.questions[data.index], settings.profile.lowMemory), seconds: Math.max(0.001, data.seconds ?? (now - (doc.measuredAt || now)) / 1000) });
+        doc.measuredAt = now;
         const key = `${doc.key}/${data.index}`;
         if (!generationProgress.done.has(key)) {
           generationProgress.done.add(key);
@@ -367,19 +424,21 @@ async function generate(doc, settings, progress) {
 $('generate').onclick = async () => {
   if (operation) return;
   const targets = documents.filter(d => d.questions.length && !d.output); if (!targets.length) return;
-  for (const doc of targets) doc.started = true;
+  const settings = readSettings();
+  for (const doc of targets) {
+    doc.started = true; doc.generationSettings = settings; doc.measurements = []; doc.measuredAt = undefined; doc.generationState = 'queued';
+  }
   generationProgress = { total: targets.reduce((sum, doc) => sum + doc.questions.reduce((n, q) => n + questionWork(q), 0), 0), completed: 0, started: 0, done: new Set() };
   const progressTimer = setInterval(renderProgress, 1000);
-  showStatus('음성 생성을 준비하고 있어요.');
-  renderQuestions();
-  listening = true; waiting = { doc: targets[0], index: 0 };
+  automaticStart = { doc: targets[0] };
+  listening = false; waiting = undefined; audio.pause();
   operation = new AbortController(); const signal = operation.signal; refreshControls();
-  if (targets[0].previews[0]) listenAt(targets[0], 0);
-  const settings = { profile, turnGap: Number($('turn-gap').value), questionGap: Number($('question-gap').value), repeat: $('repeat').checked, examAudio: $('exam-audio').checked };
+  showStatus('음성 생성을 준비하고 있어요. 이어 듣기 시작 시간도 계산해요.');
   let finished = 0; let failed = 0; let failureMessage;
   try {
     for (const [index, doc] of targets.entries()) {
       signal.throwIfAborted();
+      doc.generationState = 'running';
       $('generate').textContent = `파일 ${index + 1}/${targets.length} 생성 중…`;
       try {
         const length = doc.questions.reduce((sum, q) => sum + q.turns.reduce((n, t) => n + (t.speaker ? t.text.length : 0), 0), 0);
@@ -398,6 +457,7 @@ $('generate').onclick = async () => {
         for (const preview of doc.previews) if (preview && preview.url !== playback?.url) URL.revokeObjectURL(preview.url);
         doc.previews = [];
         doc.state = `음성 완료 · ${doc.questions.length}개 지문`; finished++;
+        doc.generationState = 'complete';
         if (active === doc) {
           if (!playback) loadAudio();
           $('download').disabled = false;
@@ -405,6 +465,7 @@ $('generate').onclick = async () => {
         }
         renderDocuments();
       } catch (error) {
+        doc.generationState = 'failed';
         if (signal.aborted) { doc.state = `생성 취소 · ${doc.previews.filter(Boolean).length}개 문항 듣기 가능`; throw error; }
         const ready = doc.previews.filter(Boolean).length;
         failureMessage = error.message;
@@ -416,6 +477,9 @@ $('generate').onclick = async () => {
   finally {
     clearInterval(progressTimer); generationProgress = undefined;
     operation = undefined; rejectGeneration = undefined;
+    // A completed first file can now start even when there was only one
+    // question; failed/cancelled files never leave a delayed auto-start behind.
+    renderListeningPlan();
     if (waiting && !waiting.doc.output && !waiting.doc.previews[waiting.index]) {
       listening = false; waiting = undefined; updatePlayerCaption();
     }
@@ -423,7 +487,7 @@ $('generate').onclick = async () => {
   }
 };
 $('cancel').onclick = () => {
-  listening = false; waiting = undefined;
+  automaticStart = undefined; listening = false; waiting = undefined;
   operation?.abort(); worker?.terminate(); worker = undefined;
   rejectGeneration?.(new DOMException('취소됨', 'AbortError'));
 };
@@ -448,7 +512,7 @@ function playReady() {
   });
 }
 function listenAt(doc, index) {
-  listening = true; waiting = undefined;
+  automaticStart = undefined; listening = true; waiting = undefined;
   if (active !== doc) selectDocument(doc, index);
   else {
     selected = index; $('show-script').checked = false;
@@ -462,8 +526,17 @@ function advanceListening() {
   if (!listening || !playback) return false;
   let doc = playback.doc;
   let index = playback.preview ? playback.index + 1 : doc.questions.length;
-  if (index >= doc.questions.length) { doc = documents[documents.indexOf(doc) + 1]; index = 0; }
+  if (index >= doc.questions.length || (doc.generationState === 'failed' && !doc.output && !doc.previews[index])) {
+    doc = documents.slice(documents.indexOf(doc) + 1).find(next => next.questions.length && (next.generationState !== 'failed' || next.output || next.previews[0])); index = 0;
+  }
   if (!doc) { listening = false; return false; }
+  if (doc !== playback.doc && !doc.output && operation) {
+    listening = false; waiting = undefined;
+    selectDocument(doc);
+    automaticStart = { doc };
+    renderListeningPlan();
+    return true;
+  }
   if (doc.output || doc.previews[index]) { listenAt(doc, index); return true; }
   else if (operation) {
     waiting = { doc, index };
@@ -475,6 +548,7 @@ function advanceListening() {
   return false;
 }
 $('play').onclick = async () => {
+  if (automaticStart) { automaticStart = undefined; if (active.output || active.previews[selected]) listenAt(active, selected); renderListeningPlan(); return; }
   if (waiting) { listening = false; waiting = undefined; updatePlayerCaption(); $('play').textContent = '▶'; $('play').setAttribute('aria-label', '재생'); return; }
   if (!playback) return;
   if (!audio.paused) { listening = false; return audio.pause(); }
@@ -482,6 +556,12 @@ $('play').onclick = async () => {
   if (audio.ended) {
     if (!advanceListening()) { listening = true; audio.currentTime = 0; playReady(); }
   } else playReady();
+};
+$('start-listening').onclick = () => { listenAt(active, 0); renderListeningPlan(); };
+$('auto-listening').onclick = () => {
+  if (automaticStart?.doc === active) automaticStart = undefined;
+  else { audio.pause(); listening = false; waiting = undefined; automaticStart = { doc: active }; }
+  renderListeningPlan();
 };
 audio.onplay = () => { $('play').textContent = 'Ⅱ'; $('play').setAttribute('aria-label', '일시정지'); };
 audio.onpause = () => { $('play').textContent = '▶'; $('play').setAttribute('aria-label', '재생'); };
@@ -494,7 +574,7 @@ function updateTime() {
 }
 audio.ontimeupdate = audio.onloadedmetadata = updateTime;
 $('seek').oninput = () => { audio.currentTime = Number($('seek').value); };
-$('speed').onchange = () => { audio.playbackRate = Number($('speed').value); };
+$('speed').onchange = () => { audio.playbackRate = Number($('speed').value); renderListeningPlan(); };
 window.addEventListener('beforeunload', event => { if (operation || documents.some(d => d.text)) { event.preventDefault(); event.returnValue = ''; } });
-window.addEventListener('pagehide', () => { operation?.abort(); worker?.terminate(); worker = undefined; rejectGeneration?.(new Error('페이지 닫힘')); });
+window.addEventListener('pagehide', () => { automaticStart = undefined; operation?.abort(); worker?.terminate(); worker = undefined; rejectGeneration?.(new Error('페이지 닫힘')); });
 refreshControls();

@@ -50,6 +50,10 @@ export async function synthesize(questions, settings, speak, progress = () => {}
     if (index === 0 && settings.intro) {
       clips.push(settings.intro); length += settings.intro.length;
     }
+    if (settings.questionChime) {
+      const cue = settings.chime || chime();
+      clips.push(cue); length += cue.length;
+    }
     const prompts = questionPromptsFor(q);
     if (prompts.length && !speakKorean) throw new Error('한국어 질문 음성을 준비하지 못했습니다. 다시 생성해 주세요.');
     for (const { id, prompt } of prompts) {
@@ -64,13 +68,14 @@ export async function synthesize(questions, settings, speak, progress = () => {}
       length += audio.length + Math.round(0.7 * SAMPLE_RATE);
     }
     const turns = [];
-    for (let i = 0; i < q.turns.length; i++) {
-      const turn = q.turns[i];
-      progress(`${q.id}번 · ${i + 1}/${q.turns.length} 대사·지시 처리 중`);
+    const sourceTurns = settings.questionChime && q.turns[0]?.type === 'chime' ? q.turns.slice(1) : q.turns;
+    for (let i = 0; i < sourceTurns.length; i++) {
+      const turn = sourceTurns[i];
+      progress(`${q.id}번 · ${i + 1}/${sourceTurns.length} 대사·지시 처리 중`);
       if (turn.type === 'chime') turns.push(settings.chime || chime(turn.duration));
       else if (turn.type === 'pause') turns.push(Math.round(turn.duration * SAMPLE_RATE));
       else {
-        if (i > 0 && q.turns[i - 1].speaker) turns.push(Math.round(settings.turnGap * SAMPLE_RATE));
+        if (i > 0 && sourceTurns[i - 1].speaker) turns.push(Math.round(settings.turnGap * SAMPLE_RATE));
         let first = true;
         for (const text of splitSpeech(turn.text)) {
           if (!first) turns.push(Math.round(0.08 * SAMPLE_RATE));

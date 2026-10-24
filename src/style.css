@@ -220,6 +220,7 @@ select option { background: var(--card); color: var(--ink); }
 /* 3. Listen */
 .question-progress .card-head { margin-bottom: 8px; }
 .question-progress .batch-help { margin: 0; }
+.question-progress .editor-actions { flex-wrap: wrap; margin-top: 8px; }
 .player { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--r-box); background: var(--soft); }
 .play-button {
   flex-shrink: 0; display: grid; place-items: center; width: 52px; height: 52px; border: 0; border-radius: 50%;

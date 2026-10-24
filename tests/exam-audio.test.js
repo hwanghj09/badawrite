@@ -40,3 +40,21 @@ test('original introduction plays once and original chime replaces synthetic cue
   assert.equal(streamed.markers[1].start, (parts[0].size - 44) / 2 / SAMPLE_RATE);
   assert.deepEqual(await joinWav(parts).arrayBuffer(), encodeWav(full.samples));
 });
+
+test('automatic question chime precedes Korean, plays once despite repeats, and matches preview and saved WAV', async () => {
+  const questions = parseScript('1번\n[Chime bell rings.]\nW: Hello.\n2번\nM: Hi. [Chime bell rings.] Goodbye.');
+  questions[0].repeat = 2;
+  for (const q of questions) q.questionPrompts = [{ id: q.id, prompt: '다음을 듣고 답하시오.' }];
+  const settings = { questionChime: true, intro: new Float32Array([0.875]), chime: new Float32Array([0.75]), turnGap: 0, questionGap: 0 };
+  const speak = async () => new Float32Array([0.25]);
+  const korean = async () => new Float32Array([0.5]);
+  const full = await synthesize(questions, settings, speak, undefined, undefined, korean);
+  assert.deepEqual([...full.samples.slice(0, 3)], [0.875, 0.75, 0.5]);
+  assert.equal([...full.samples].filter(x => x === 0.75).length, 3); // 2 question starts + 1 inline cue.
+  assert.equal([...full.samples].filter(x => x === 0.5).length, 2);
+  const parts = [];
+  const streamed = await synthesize(questions, { ...settings, streamOnly: true }, speak, undefined,
+    ({ samples }) => parts.push(new Blob([encodeWav(samples)])), korean);
+  assert.deepEqual(streamed.markers, full.markers);
+  assert.deepEqual(await joinWav(parts).arrayBuffer(), encodeWav(full.samples));
+});

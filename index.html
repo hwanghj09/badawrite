@@ -74,6 +74,9 @@
           <input id="exam-audio" class="switch" type="checkbox" role="switch" checked />
         </label>
         <p class="hint">시작 안내방송을 붙이고, 대본의 차임벨 표시에 원본 소리를 넣어요. <a href="https://www.suneung.re.kr/boardCnts/list.do?boardID=1500234&amp;m=0403&amp;s=suneung" target="_blank" rel="noopener noreferrer">출처: 평가원 2026학년도 수능</a></p>
+        <label class="setting-line" for="question-chime">문항 시작 차임벨
+          <input id="question-chime" class="switch" type="checkbox" role="switch" checked />
+        </label>
         <label class="setting-line" for="turn-gap">화자 사이
           <select id="turn-gap"><option value="0.25">0.25초</option><option value="0.5" selected>0.5초</option><option value="1">1초</option></select>
         </label>
@@ -98,6 +101,13 @@
         <span id="ready-count" class="count" role="status"></span>
       </div>
       <p class="batch-help">전체 생성을 기다리지 않아도 돼요. 준비된 번호를 누르면 바로 재생해요.</p>
+      <p id="listening-estimate" class="notice" role="timer"></p>
+      <p id="listening-buffer" class="notice" role="timer"></p>
+      <div class="editor-actions">
+        <button id="start-listening" class="text-button" disabled>지금부터 이어 듣기</button>
+        <button id="auto-listening" class="text-button" hidden>자동 시작 취소</button>
+      </div>
+      <p class="notice">이 파일의 생성 속도를 측정해 끊김을 줄일 만큼 준비되면 시작해요. 배속·기기 상태에 따라 예상은 달라지며, 준비된 번호는 바로 들을 수 있어요.</p>
       <div id="question-list" class="question-list" aria-label="문항 선택"></div>
     </section>
 

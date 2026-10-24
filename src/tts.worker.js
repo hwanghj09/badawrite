@@ -61,10 +61,13 @@ self.onmessage = async ({ data }) => {
       return samples;
     } : koreanSpeech;
     const examAudio = data.examAudio ? await loadExamAudio() : {};
+    let lastCompleted = performance.now();
     const { markers } = await synthesize(data.questions, { ...data, ...examAudio, streamOnly: true }, speak,
       message => self.postMessage({ type: 'status', message }),
       async ({ index, marker, samples }) => {
-        self.postMessage({ type: 'progress', index });
+        const now = performance.now();
+        self.postMessage({ type: 'progress', index, seconds: (now - lastCompleted) / 1000 });
+        lastCompleted = now;
         if (data.skipPreviews?.includes(index)) return;
         const wav = encodeWav(samples);
         self.postMessage({ type: 'question', index, marker, wav }, [wav]);
